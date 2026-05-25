@@ -53,8 +53,8 @@ export async function POST(request: Request) {
 
     // 4. Inicializa cliente Supabase direto (sem dependência de cookies)
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
     );
 
     // 5. Salva ou atualiza (upsert) o código OTP para o e-mail no banco de dados
