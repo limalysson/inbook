@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
+import EventsCard from '@/components/EventsCard';
 
 /**
  * Página do Dashboard Administrativo.
@@ -60,6 +61,13 @@ export default async function DashboardPage() {
     .select('id, titulo, autor, categoria, capa_url')
     .order('created_at', { ascending: false })
     .limit(4);
+
+  // 4. Busca eventos agendados reais da tabela public.eventos
+  const { data: eventos } = await supabase
+    .from('eventos')
+    .select('id, titulo, data_evento')
+    .gte('data_evento', new Date().toISOString())
+    .order('data_evento', { ascending: true });
 
   // Fallbacks ilustrativos caso o banco esteja vazio no primeiro acesso
   const ilustrativosEmprestimos = [
@@ -309,38 +317,7 @@ export default async function DashboardPage() {
 
         {/* Painel Direito: Utilitários Laterais */}
         <div className="space-y-6">
-          
-          {/* Card Literário Curiosidade */}
-          <div className="bg-primary text-on-primary p-6 rounded-xl relative overflow-hidden shadow-sm select-none">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full"></div>
-            <Lightbulb className="w-8 h-8 mb-4 text-on-primary/95" />
-            <h4 className="font-serif text-lg font-bold italic mb-3">Curiosidade do Dia</h4>
-            <p className="text-xs leading-relaxed text-on-primary/90">
-              A maior biblioteca física do mundo hoje é a Biblioteca do Congresso dos Estados Unidos, em Washington, com mais de 170 milhões de itens catalogados, incluindo mais de 39 milhões de livros.
-            </p>
-            <div className="mt-6 pt-4 border-t border-white/10 text-[10px] uppercase tracking-wider font-bold opacity-60">
-              Fato Literário do Dia
-            </div>
-          </div>
-
-          {/* Card Próximos Eventos */}
-          <div className="bg-surface-container border border-outline-variant/30 p-6 rounded-xl space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/30">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Próximos Eventos</h4>
-              <Calendar className="w-4 h-4 text-primary" />
-            </div>
-            <div className="space-y-3">
-              <div className="p-3 bg-white border border-outline-variant/20 rounded border-l-4 border-l-primary">
-                <p className="text-[10px] font-bold text-on-surface-variant">26 de Out, 14:00</p>
-                <p className="text-xs font-bold text-primary mt-1">Tour de Manuscritos Raros</p>
-              </div>
-              <div className="p-3 bg-white border border-outline-variant/20 rounded border-l-4 border-l-outline">
-                <p className="text-[10px] font-bold text-on-surface-variant">29 de Out, 09:00</p>
-                <p className="text-xs font-bold text-primary mt-1">Reunião Mensal de Aquisições</p>
-              </div>
-            </div>
-          </div>
-
+          <EventsCard initialEvents={eventos || []} />
         </div>
 
       </div>
