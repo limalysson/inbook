@@ -5,7 +5,7 @@ import { updateSession } from '@/lib/supabase/middleware';
  * Middleware global do Next.js.
  * Intercepta as rotas mapeadas no matcher e atualiza a sessão do Supabase de forma transparente.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
