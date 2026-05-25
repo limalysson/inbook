@@ -28,6 +28,13 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Diagnóstico das variáveis de ambiente no cliente
+  React.useEffect(() => {
+    console.log('[DEBUG] NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('[DEBUG] NEXT_PUBLIC_SUPABASE_ANON_KEY (Início):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 15));
+    console.log('[DEBUG] NEXT_PUBLIC_SUPABASE_ANON_KEY (Tamanho):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
+  }, []);
+
   // Estados de navegação e inputs
   const [activeTab, setActiveTab] = useState<'leitor' | 'gestor'>('leitor');
   const [email, setEmail] = useState('');
