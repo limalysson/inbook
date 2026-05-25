@@ -94,11 +94,18 @@ export default async function DashboardPage() {
         </div>
         <div className="flex gap-3">
           <Link
-            href="/admin/acervo"
+            href="/admin/acervo?add=true"
             className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>Nova Aquisição</span>
+          </Link>
+          <Link
+            href="/admin/usuarios?add=true"
+            className="flex items-center gap-2 border border-primary text-primary px-5 py-2.5 rounded text-sm font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Leitor</span>
           </Link>
         </div>
       </header>

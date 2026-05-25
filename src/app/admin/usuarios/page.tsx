@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Usuario, UserType } from '@/types';
 import { 
@@ -27,7 +28,20 @@ import {
  * instantaneamente o status do leitor (Ativo/Inativo) no Supabase.
  */
 export default function UsuariosPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <UsuariosPageContent />
+    </Suspense>
+  );
+}
+
+function UsuariosPageContent() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   // Estados de dados
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -113,6 +127,12 @@ export default function UsuariosPage() {
   useEffect(() => {
     fetchUsuarios();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Adiciona novo usuário (Simulado sem Auth Admin por chaves anon, ou inserindo perfil direto)
   const handleAddUsuario = async (e: React.FormEvent) => {

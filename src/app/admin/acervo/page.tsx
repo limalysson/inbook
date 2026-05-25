@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Material } from '@/types';
 import { 
@@ -23,7 +24,20 @@ import {
  * diretamente no banco de dados do Supabase.
  */
 export default function AcervoPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <AcervoPageContent />
+    </Suspense>
+  );
+}
+
+function AcervoPageContent() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   // Estados de dados
   const [materiais, setMateriais] = useState<Material[]>([]);
@@ -69,6 +83,12 @@ export default function AcervoPage() {
   useEffect(() => {
     fetchMateriais();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Adiciona novo material no banco
   const handleAddMaterial = async (e: React.FormEvent) => {
