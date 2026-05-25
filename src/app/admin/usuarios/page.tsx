@@ -323,7 +323,7 @@ export default function UsuariosPage() {
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                    <p className="mt-2 font-semibold">Carregando diretório do Supabase...</p>
+                    <p className="mt-2 font-semibold">Carregando diretório de leitores...</p>
                   </td>
                 </tr>
               ) : usuarios.length > 0 ? (

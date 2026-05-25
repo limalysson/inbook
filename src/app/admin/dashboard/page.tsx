@@ -48,9 +48,15 @@ export default async function DashboardPage() {
       usuarios (nome_completo, email),
       acervo (titulo, autor, capa_url)
     `)
-    .eq('status', 'ativo') // na circulação, atrasados que ainda não foram devolvidos
-    .lt('data_devolucao_prevista', new Date().toISOString())
+    .eq('status', 'atrasado')
     .limit(3);
+
+  // 3. Busca livros recentes do acervo para destaques
+  const { data: livrosRecentes } = await supabase
+    .from('acervo')
+    .select('id, titulo, autor, categoria, capa_url')
+    .order('created_at', { ascending: false })
+    .limit(4);
 
   // Fallbacks ilustrativos caso o banco esteja vazio no primeiro acesso
   const ilustrativosAtrasados = [
@@ -105,7 +111,7 @@ export default async function DashboardPage() {
               {(totalTitulos || 0).toLocaleString('pt-BR')}
             </p>
             <p className="text-xs text-on-primary-container/70 font-sans">
-              +12 novos adicionados este mês na base do Supabase
+              +12 novos adicionados este mês no acervo
             </p>
           </div>
           <BookOpen className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 group-hover:scale-105 transition-transform duration-500 text-white" />
@@ -182,8 +188,8 @@ export default async function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-xs text-secondary font-bold">Devolução Prevista</p>
-                      <p className="text-[10px] text-on-surface-variant font-bold">{formatDate(item.data_devolucao_prevista)}</p>
+                      <p className="text-xs text-secondary font-bold">Previsto: {formatDate(item.data_devolucao_prevista)}</p>
+                      <p className="text-[10px] text-on-surface-variant font-bold">Leitor: {item.usuarios?.nome_completo || 'Institucional'}</p>
                     </div>
                     <button className="p-2 hover:bg-error-container/20 rounded-full text-secondary transition-colors cursor-pointer">
                       <Mail className="w-4 h-4" />
@@ -218,29 +224,51 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Indicações Reativas (Ilustrativas / Lançamentos) */}
+          {/* Indicações Reativas (Dinâmicas / Lançamentos) */}
           <div className="pt-4 space-y-4">
             <h3 className="font-serif text-xl font-bold text-primary">Destaques e Adições Recentes</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { title: 'A Arqueologia do Saber', author: 'Michel Foucault', tag: 'Filosofia' },
-                { title: 'A Estrutura das Revoluções', author: 'Thomas Kuhn', tag: 'Ciência' },
-                { title: 'Dom Quixote de la Mancha', author: 'Miguel de Cervantes', tag: 'Literatura' },
-                { title: 'The Archetype of Wisdom', author: 'Elena Rostova', tag: 'História' },
-              ].map((book, idx) => (
-                <div key={idx} className="bg-surface border border-outline-variant/40 p-4 rounded-lg flex flex-col justify-between gap-3 hover:shadow-sm transition-all">
-                  <div className="w-full aspect-[3/4] bg-surface-container flex items-center justify-center rounded border border-outline-variant/20 mb-2">
-                    <BookOpen className="w-8 h-8 opacity-25 text-primary" />
+              {livrosRecentes && livrosRecentes.length > 0 ? (
+                livrosRecentes.map((book: any) => (
+                  <div key={book.id} className="bg-surface border border-outline-variant/40 p-4 rounded-lg flex flex-col justify-between gap-3 hover:shadow-sm transition-all">
+                    <div className="w-full aspect-[3/4] bg-surface-container flex items-center justify-center rounded border border-outline-variant/20 mb-2 overflow-hidden">
+                      {book.capa_url ? (
+                        <img src={book.capa_url} alt="Capa" className="w-full h-full object-cover" />
+                      ) : (
+                        <BookOpen className="w-8 h-8 opacity-25 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-primary line-clamp-1 leading-tight">{book.titulo}</h5>
+                      <p className="text-[10px] text-on-surface-variant leading-none mt-1">{book.autor}</p>
+                    </div>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-on-surface-variant/80 bg-surface-container px-2 py-0.5 rounded w-max mt-1">
+                      {book.categoria}
+                    </span>
                   </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-primary line-clamp-1 leading-tight">{book.title}</h5>
-                    <p className="text-[10px] text-on-surface-variant leading-none mt-1">{book.author}</p>
+                ))
+              ) : (
+                // Fallback ilustrativo caso a base esteja vazia
+                [
+                  { titulo: 'A Arqueologia do Saber', autor: 'Michel Foucault', categoria: 'Filosofia' },
+                  { titulo: 'A Estrutura das Revoluções', autor: 'Thomas Kuhn', categoria: 'Ciência' },
+                  { titulo: 'Dom Quixote de la Mancha', autor: 'Miguel de Cervantes', categoria: 'Literatura' },
+                  { titulo: 'The Archetype of Wisdom', autor: 'Elena Rostova', categoria: 'História' },
+                ].map((book, idx) => (
+                  <div key={idx} className="bg-surface border border-outline-variant/40 p-4 rounded-lg flex flex-col justify-between gap-3 hover:shadow-sm transition-all">
+                    <div className="w-full aspect-[3/4] bg-surface-container flex items-center justify-center rounded border border-outline-variant/20 mb-2">
+                      <BookOpen className="w-8 h-8 opacity-25 text-primary" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-primary line-clamp-1 leading-tight">{book.titulo}</h5>
+                      <p className="text-[10px] text-on-surface-variant leading-none mt-1">{book.autor}</p>
+                    </div>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-on-surface-variant/80 bg-surface-container px-2 py-0.5 rounded w-max mt-1">
+                      {book.categoria}
+                    </span>
                   </div>
-                  <span className="text-[9px] uppercase font-bold tracking-widest text-on-surface-variant/80 bg-surface-container px-2 py-0.5 rounded w-max mt-1">
-                    {book.tag}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
