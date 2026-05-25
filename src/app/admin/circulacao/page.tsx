@@ -45,8 +45,20 @@ export default function CirculacaoPage() {
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [returnDays, setReturnDays] = useState('14');
 
-  // Estado para guardar a taxa de multa configurada (carregada do localStorage)
   const [fineRate, setFineRate] = useState(2.00);
+
+  // Filtro de status de empréstimos ativos (todos | ativo | atrasado) suportando query params
+  const [filterType, setFilterType] = useState<'todos' | 'ativo' | 'atrasado'>('todos');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      if (status === 'ativo' || status === 'atrasado') {
+        setFilterType(status);
+      }
+    }
+  }, []);
 
   // Carrega todos os dados iniciais do Supabase
   const loadData = async () => {
@@ -285,11 +297,17 @@ export default function CirculacaoPage() {
     }
   };
 
-  // Separação de abas para listagem
-  const ativos = emprestimos.filter((e) => e.status !== 'devolvido');
+  // Separação de abas para listagem com filtro dinâmico
+  const todosAtivos = emprestimos.filter((e) => e.status !== 'devolvido');
+  const ativos = todosAtivos.filter((e) => {
+    if (filterType === 'ativo') return e.status === 'ativo';
+    if (filterType === 'atrasado') return e.status === 'atrasado';
+    return true;
+  });
+  
   const historico = emprestimos.filter((e) => e.status === 'devolvido');
 
-  // Dados mockados ilustrativos para demonstrar layout se o banco estiver vazio
+  // Filtra também a lista de dados ilustrativos para manter o visual coerente se o banco estiver limpo
   const ilustrativosAtivos = [
     {
       id: '1',
@@ -309,7 +327,11 @@ export default function CirculacaoPage() {
       renovacoes_contagem: 1,
       material_id: '2'
     }
-  ];
+  ].filter((e) => {
+    if (filterType === 'ativo') return e.status === 'ativo';
+    if (filterType === 'atrasado') return e.status === 'atrasado';
+    return true;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -375,7 +397,29 @@ export default function CirculacaoPage() {
 
       {/* ABA 1: EMPRÉSTIMOS ATIVOS */}
       {activeTab === 'ativos' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6 col-span-full">
+          {/* Filtros Rápidos Segmentados */}
+          <div className="flex items-center gap-2 bg-surface-container-low p-1.5 border border-outline-variant/35 rounded-lg w-max select-none">
+            {[
+              { id: 'todos', label: 'Todos os Ativos' },
+              { id: 'ativo', label: 'Regulares' },
+              { id: 'atrasado', label: 'Atrasados' }
+            ].map((pill) => (
+              <button
+                key={pill.id}
+                onClick={() => setFilterType(pill.id as any)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  filterType === pill.id
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'text-on-surface-variant hover:text-primary'
+                }`}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {loading ? (
             <div className="col-span-2 text-center py-12 text-on-surface-variant">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
@@ -513,6 +557,7 @@ export default function CirculacaoPage() {
               );
             })
           )}
+        </div>
         </div>
       )}
 
