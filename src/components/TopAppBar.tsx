@@ -50,7 +50,7 @@ export default function TopAppBar({ onMenuClick, userEmail, userName }: TopAppBa
         </button>
         <div className="flex items-center h-8">
           <img 
-            src="/marca.JPG" 
+            src="/logoinbook.png" 
             alt="INBOOK Logo" 
             className="h-8 w-auto object-contain" 
           />

@@ -15,7 +15,11 @@ import {
   ChevronRight,
   X,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Trash2,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 /**
@@ -61,6 +65,12 @@ function AcervoPageContent() {
   const [newCopies, setNewCopies] = useState('1');
   const [newShelf, setNewShelf] = useState('');
 
+  // Estados de Edição e Imagem
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [capaFile, setCapaFile] = useState<File | null>(null);
+  const [capaPreviewUrl, setCapaPreviewUrl] = useState<string | null>(null);
+
   // Carrega materiais do Supabase
   const fetchMateriais = async () => {
     setLoading(true);
@@ -90,8 +100,56 @@ function AcervoPageContent() {
     }
   }, [searchParams]);
 
-  // Adiciona novo material no banco
-  const handleAddMaterial = async (e: React.FormEvent) => {
+  // Manipula mudança de arquivo de imagem (Capa)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Valida tipo
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Apenas arquivos de imagem são permitidos.');
+      return;
+    }
+
+    // Valida tamanho (5 MB limite)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('O tamanho da imagem não deve exceder 5 MB.');
+      return;
+    }
+
+    setCapaFile(file);
+    setCapaPreviewUrl(URL.createObjectURL(file));
+  };
+
+  // Upload da capa no Supabase Storage
+  const handleUploadCapa = async (file: File): Promise<string | null> => {
+    setUploadingFile(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('capas-livros')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('capas-livros')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (err: any) {
+      console.error('Erro no upload da capa:', err);
+      throw new Error(`Falha ao subir imagem: ${err.message || 'Erro desconhecido'}`);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Cadastra ou edita material no banco (Unificado)
+  const handleSaveMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
@@ -102,27 +160,59 @@ function AcervoPageContent() {
         throw new Error('O número de exemplares deve ser maior ou igual a zero.');
       }
 
-      const { data, error } = await supabase
-        .from('acervo')
-        .insert([
-          {
-            titulo: newTitle.trim(),
-            autor: newAuthor.trim(),
-            isbn: newIsbn.trim(),
-            categoria: newCategory,
-            ano: parseInt(newYear, 10),
-            exemplares_total: total,
-            exemplares_disponiveis: total, // inicialmente todos disponíveis
-            prateleira: newShelf.trim() || null,
-          }
-        ])
-        .select();
+      let uploadedCapaUrl = editingMaterial?.capa_url || null;
 
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error('Já existe um material cadastrado com este ISBN.');
+      // 1. Faz upload do arquivo se selecionado
+      if (capaFile) {
+        const url = await handleUploadCapa(capaFile);
+        if (url) {
+          uploadedCapaUrl = url;
         }
-        throw error;
+      }
+
+      const materialData: any = {
+        titulo: newTitle.trim(),
+        autor: newAuthor.trim(),
+        isbn: newIsbn.trim(),
+        categoria: newCategory,
+        ano: parseInt(newYear, 10),
+        exemplares_total: total,
+        prateleira: newShelf.trim() || null,
+        capa_url: uploadedCapaUrl,
+      };
+
+      if (editingMaterial) {
+        // 2A. MODO EDIÇÃO
+        // Calcula a nova quantidade disponível de forma dinâmica
+        const diff = total - editingMaterial.exemplares_total;
+        const disponiveis = Math.max(0, editingMaterial.exemplares_disponiveis + diff);
+        materialData.exemplares_disponiveis = disponiveis;
+
+        const { error } = await supabase
+          .from('acervo')
+          .update(materialData)
+          .eq('id', editingMaterial.id);
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Já existe um material cadastrado com este ISBN.');
+          }
+          throw error;
+        }
+      } else {
+        // 2B. MODO CRIAÇÃO
+        materialData.exemplares_disponiveis = total;
+
+        const { error } = await supabase
+          .from('acervo')
+          .insert([materialData]);
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Já existe um material cadastrado com este ISBN.');
+          }
+          throw error;
+        }
       }
 
       // Limpa formulário e fecha modal
@@ -133,6 +223,9 @@ function AcervoPageContent() {
       setNewYear('');
       setNewCopies('1');
       setNewShelf('');
+      setCapaFile(null);
+      setCapaPreviewUrl(null);
+      setEditingMaterial(null);
       setIsModalOpen(false);
 
       // Recarrega listagem
@@ -142,6 +235,46 @@ function AcervoPageContent() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Exclui fisicamente um material do acervo
+  const handleDeleteMaterial = async (id: string) => {
+    const confirmDelete = window.confirm('Tem certeza de que deseja remover este livro do acervo permanentemente?');
+    if (!confirmDelete) return;
+
+    setErrorMsg(null);
+    try {
+      const { error } = await supabase
+        .from('acervo')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error('Não é possível excluir este livro pois existem empréstimos vinculados a ele.');
+        }
+        throw error;
+      }
+
+      fetchMateriais();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Falha ao excluir material.');
+    }
+  };
+
+  // Prepara o formulário para edição
+  const startEditMaterial = (material: Material) => {
+    setEditingMaterial(material);
+    setNewTitle(material.titulo);
+    setNewAuthor(material.autor);
+    setNewIsbn(material.isbn);
+    setNewCategory(material.categoria);
+    setNewYear(String(material.ano));
+    setNewCopies(String(material.exemplares_total));
+    setNewShelf(material.prateleira || '');
+    setCapaFile(null);
+    setCapaPreviewUrl(material.capa_url || null);
+    setIsModalOpen(true);
   };
 
   // Filtros aplicados na listagem
@@ -297,11 +430,15 @@ function AcervoPageContent() {
                   <tr key={item.id} className="hover:bg-surface-container/10 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-12 bg-surface-container-high rounded-sm flex items-center justify-center text-primary border border-outline-variant/30">
-                          <BookOpen className="w-4 h-4 opacity-50" />
+                        <div className="w-8 h-12 bg-surface-container-high rounded-sm flex items-center justify-center text-primary border border-outline-variant/30 overflow-hidden shrink-0">
+                          {item.capa_url ? (
+                            <img src={item.capa_url} alt="Capa" className="w-full h-full object-cover" />
+                          ) : (
+                            <BookOpen className="w-4 h-4 opacity-50" />
+                          )}
                         </div>
                         <div>
-                          <p className="font-bold text-primary">{item.titulo}</p>
+                          <p className="font-bold text-primary line-clamp-1">{item.titulo}</p>
                           <p className="text-[10px] text-on-surface-variant italic">
                             {item.prateleira || 'Sem prateleira definida'}
                           </p>
@@ -326,9 +463,22 @@ function AcervoPageContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-on-surface-variant hover:text-primary p-1.5 rounded-full transition-colors cursor-pointer">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex justify-end items-center gap-2">
+                        <button
+                          onClick={() => startEditMaterial(item)}
+                          className="text-on-surface-variant hover:text-primary p-1.5 rounded transition-colors cursor-pointer hover:bg-surface-container-low"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMaterial(item.id)}
+                          className="text-on-surface-variant hover:text-secondary p-1.5 rounded transition-colors cursor-pointer hover:bg-surface-container-low"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -415,22 +565,37 @@ function AcervoPageContent() {
         </div>
       </section>
 
-      {/* MODAL: Adicionar Novo Livro */}
+      {/* MODAL: Adicionar/Editar Livro */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white border border-outline-variant w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col">
             
             <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
-              <h3 className="font-serif text-lg font-bold text-primary">Cadastrar Novo Material</h3>
+              <h3 className="font-serif text-lg font-bold text-primary">
+                {editingMaterial ? 'Editar Material' : 'Cadastrar Novo Material'}
+              </h3>
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingMaterial(null);
+                  setNewTitle('');
+                  setNewAuthor('');
+                  setNewIsbn('');
+                  setNewCategory('');
+                  setNewYear('');
+                  setNewCopies('1');
+                  setNewShelf('');
+                  setCapaFile(null);
+                  setCapaPreviewUrl(null);
+                  setErrorMsg(null);
+                }}
                 className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </header>
 
-            <form onSubmit={handleAddMaterial} className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+            <form onSubmit={handleSaveMaterial} className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
               {errorMsg && (
                 <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
                   <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
@@ -527,23 +692,89 @@ function AcervoPageContent() {
                 />
               </div>
 
+              {/* Upload de Capa do Livro */}
+              <div className="space-y-2 pt-2 border-t border-outline-variant/20">
+                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Capa do Livro</label>
+                <div className="flex gap-4 items-center">
+                  {/* Preview Container */}
+                  <div className="w-16 h-24 bg-surface-container border border-outline-variant/30 rounded flex items-center justify-center text-primary overflow-hidden shrink-0 shadow-sm">
+                    {capaPreviewUrl ? (
+                      <img src={capaPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 opacity-30 text-primary" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="capa-upload"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="capa-upload"
+                        className="flex items-center justify-center gap-2 border border-outline text-primary text-xs font-semibold py-2 px-3 rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer shadow-sm w-max"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{capaPreviewUrl ? 'Alterar Imagem' : 'Selecionar Capa'}</span>
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-on-surface-variant italic leading-normal">
+                      PNG, JPG ou WEBP. Tamanho máximo recomendado de 5MB.
+                    </p>
+                    {capaPreviewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCapaFile(null);
+                          setCapaPreviewUrl(null);
+                        }}
+                        className="text-[10px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>Remover Capa</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingMaterial(null);
+                    setNewTitle('');
+                    setNewAuthor('');
+                    setNewIsbn('');
+                    setNewCategory('');
+                    setNewYear('');
+                    setNewCopies('1');
+                    setNewShelf('');
+                    setCapaFile(null);
+                    setCapaPreviewUrl(null);
+                    setErrorMsg(null);
+                  }}
                   className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || uploadingFile}
                   className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow"
                 >
                   {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{uploadingFile ? 'Enviando Capa...' : 'Salvando...'}</span>
+                    </>
                   ) : (
-                    <span>Salvar no Acervo</span>
+                    <span>{editingMaterial ? 'Salvar Alterações' : 'Salvar no Acervo'}</span>
                   )}
                 </button>
               </footer>
