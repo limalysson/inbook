@@ -9,7 +9,8 @@ import {
   ArrowRight, 
   Mail, 
   CheckCircle,
-  Plus
+  Plus,
+  History
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
@@ -37,18 +38,20 @@ export default async function DashboardPage() {
     .select('*', { count: 'exact', head: true })
     .eq('status', 'atrasado');
 
-  // 2. Busca lista de empréstimos atrasados reais (limita a 3) com Joins
-  const { data: atrasados } = await supabase
+  // 2. Busca lista de empréstimos mais recentes realizados (limita a 3) com Joins
+  const { data: ultimosEmprestimos } = await supabase
     .from('circulacao')
     .select(`
       id,
+      data_emprestimo,
       data_devolucao_prevista,
+      status,
       usuario_id,
       material_id,
       usuarios (nome_completo, email),
       acervo (titulo, autor, capa_url)
     `)
-    .eq('status', 'atrasado')
+    .order('data_emprestimo', { ascending: false })
     .limit(3);
 
   // 3. Busca livros recentes do acervo para destaques
@@ -59,18 +62,20 @@ export default async function DashboardPage() {
     .limit(4);
 
   // Fallbacks ilustrativos caso o banco esteja vazio no primeiro acesso
-  const ilustrativosAtrasados = [
+  const ilustrativosEmprestimos = [
     {
       id: '1',
-      acervo: { titulo: 'O Leviatã e a Bomba de Ar', autor: 'Steven Shapin', capa_url: null },
-      usuarios: { nome_completo: 'Marcos Hanson', email: 'm_hanson@inbec.edu.br' },
-      dias: 5
+      acervo: { titulo: 'Código Limpo (Clean Code)', autor: 'Robert C. Martin', capa_url: null },
+      usuarios: { nome_completo: 'João Silva', email: 'joao.silva@inbec.edu.br' },
+      data_emprestimo: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'ativo'
     },
     {
       id: '2',
-      acervo: { titulo: 'Crítica da Razão Pura', autor: 'Immanuel Kant', capa_url: null },
-      usuarios: { nome_completo: 'Lucas Vaughn', email: 'l_vaughn@inbec.edu.br' },
-      dias: 12
+      acervo: { titulo: 'Introdução aos Algoritmos', autor: 'Thomas H. Cormen', capa_url: null },
+      usuarios: { nome_completo: 'Maria Santos', email: 'maria.santos@inbec.edu.br' },
+      data_emprestimo: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'atrasado'
     }
   ];
 
@@ -163,12 +168,12 @@ export default async function DashboardPage() {
       {/* Conteúdo Secundário Dividido */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Painel Esquerdo: Lista de Livros Atrasados */}
+        {/* Painel Esquerdo: Lista de Últimos Empréstimos */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="font-serif text-xl font-bold text-primary flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-secondary" />
-              <span>Atenção: Atrasos Pendentes</span>
+              <History className="w-5 h-5 text-primary" />
+              <span>Últimos Empréstimos Realizados</span>
             </h3>
             <Link
               href="/admin/circulacao"
@@ -179,11 +184,11 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-3 bg-surface-container-low p-3 border border-outline-variant/30 rounded-lg">
-            {atrasados && atrasados.length > 0 ? (
-              atrasados.map((item: any) => (
+            {ultimosEmprestimos && ultimosEmprestimos.length > 0 ? (
+              ultimosEmprestimos.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-outline-variant/20 rounded hover:border-outline transition-all">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-14 bg-surface-container flex items-center justify-center rounded-sm font-bold text-primary border border-outline-variant/30">
+                    <div className="w-10 h-14 bg-surface-container flex items-center justify-center rounded-sm font-bold text-primary border border-outline-variant/30 overflow-hidden">
                       {item.acervo.capa_url ? (
                         <img src={item.acervo.capa_url} alt="Capa" className="w-full h-full object-cover" />
                       ) : (
@@ -192,41 +197,53 @@ export default async function DashboardPage() {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-primary">{item.acervo.titulo}</h4>
-                      <p className="text-[11px] text-on-surface-variant">{item.acervo.autor}</p>
+                      <p className="text-[11px] text-on-surface-variant leading-none mt-1">{item.acervo.autor}</p>
+                      <p className="text-[10px] text-on-surface-variant font-bold mt-2">Leitor: {item.usuarios?.nome_completo || 'Institucional'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-secondary font-bold">Previsto: {formatDate(item.data_devolucao_prevista)}</p>
-                      <p className="text-[10px] text-on-surface-variant font-bold">Leitor: {item.usuarios?.nome_completo || 'Institucional'}</p>
+                    <div className="text-right flex flex-col items-end gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        item.status === 'devolvido'
+                          ? 'bg-surface-container border border-outline-variant/30 text-on-surface-variant'
+                          : item.status === 'atrasado'
+                          ? 'bg-error-container border border-error/20 text-on-error-container'
+                          : 'bg-primary-container border border-primary/20 text-on-primary-container'
+                      }`}>
+                        {item.status === 'devolvido' ? 'Devolvido' : item.status === 'atrasado' ? 'Atrasado' : 'Em Andamento'}
+                      </span>
+                      <p className="text-[10px] text-on-surface-variant font-medium">Empréstimo: {formatDate(item.data_emprestimo)}</p>
                     </div>
-                    <button className="p-2 hover:bg-error-container/20 rounded-full text-secondary transition-colors cursor-pointer">
-                      <Mail className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               ))
             ) : (
               // Exibição demonstrativa ilustrativa se não houver dados no banco ainda
-              ilustrativosAtrasados.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-outline-variant/20 rounded hover:border-outline transition-all select-none">
+              ilustrativosEmprestimos.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-outline-variant/20 rounded hover:border-outline transition-all select-none opacity-90">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-14 bg-surface-container flex items-center justify-center rounded-sm font-bold text-primary border border-outline-variant/30">
                       <BookOpen className="w-5 h-5 opacity-40" />
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-primary">{item.acervo.titulo}</h4>
-                      <p className="text-[11px] text-on-surface-variant">{item.acervo.autor}</p>
+                      <p className="text-[11px] text-on-surface-variant leading-none mt-1">{item.acervo.autor}</p>
+                      <p className="text-[10px] text-on-surface-variant font-bold mt-2">Leitor: {item.usuarios.nome_completo}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-secondary font-bold">{item.dias} Dias de Atraso</p>
-                      <p className="text-[10px] text-on-surface-variant font-bold">Leitor: {item.usuarios.nome_completo}</p>
+                    <div className="text-right flex flex-col items-end gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        item.status === 'devolvido'
+                          ? 'bg-surface-container border border-outline-variant/30 text-on-surface-variant'
+                          : item.status === 'atrasado'
+                          ? 'bg-error-container border border-error/20 text-on-error-container'
+                          : 'bg-primary-container border border-primary/20 text-on-primary-container'
+                      }`}>
+                        {item.status === 'devolvido' ? 'Devolvido' : item.status === 'atrasado' ? 'Atrasado' : 'Em Andamento'}
+                      </span>
+                      <p className="text-[10px] text-on-surface-variant font-medium">Empréstimo: {formatDate(item.data_emprestimo)}</p>
                     </div>
-                    <button className="p-2 hover:bg-error-container/20 rounded-full text-secondary transition-colors cursor-pointer">
-                      <Mail className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               ))
