@@ -16,7 +16,9 @@ import {
   Library,
   BookMarked,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  X
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Usuario, Material, Circulacao } from '@/types';
@@ -40,11 +42,13 @@ export default function PortalPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [selectedCourse, setSelectedCourse] = useState('Todos');
+  const [selectedMaterialDetails, setSelectedMaterialDetails] = useState<Material | null>(null);
   const [activeTab, setActiveTab] = useState<'catalogo' | 'meus-livros'>('catalogo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Categorias de livros para filtro rápido
-  const categories = ['Todos', 'Programação', 'Banco de Dados', 'Engenharia', 'Infraestrutura', 'Outros'];
+  const categories = ['Todos', 'Programação', 'Banco de Dados', 'Infraestrutura', 'Monografia', 'TCC', 'Artigo Científico', 'Outros'];
 
   // Carrega os dados do Portal do Leitor
   const loadPortalData = async () => {
@@ -72,6 +76,20 @@ export default function PortalPage() {
         return;
       }
       setProfile(userProfile);
+
+      // Inteligência de Recomendação de Curso
+      if (userProfile && userProfile.curso_departamento) {
+        const dept = userProfile.curso_departamento.toLowerCase();
+        if (dept.includes('análise') || dept.includes('ads') || dept.includes('desenvolvimento')) {
+          setSelectedCourse('Análise e Desenvolvimento de Sistemas (ADS)');
+        } else if (dept.includes('software')) {
+          setSelectedCourse('Engenharia de Software');
+        } else if (dept.includes('civil')) {
+          setSelectedCourse('Engenharia Civil');
+        } else if (dept.includes('direito')) {
+          setSelectedCourse('Direito');
+        }
+      }
 
       // 3. Busca livros no acervo
       const { data: booksData, error: booksError } = await supabase
@@ -125,13 +143,19 @@ export default function PortalPage() {
     const matchesSearch = 
       book.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.autor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.isbn.includes(searchTerm);
+      book.isbn.includes(searchTerm) ||
+      (book.assuntos && book.assuntos.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (book.numero_chamada && book.numero_chamada.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = 
       selectedCategory === 'Todos' || 
       book.categoria.toLowerCase() === selectedCategory.toLowerCase();
 
-    return matchesSearch && matchesCategory;
+    const matchesCourse = 
+      selectedCourse === 'Todos' || 
+      book.curso === selectedCourse;
+
+    return matchesSearch && matchesCategory && matchesCourse;
   });
 
   if (loading) {
@@ -257,22 +281,38 @@ export default function PortalPage() {
           <div className="space-y-6">
             
             {/* Barra de Filtros e Pesquisa */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white border border-outline-variant rounded-xl p-4 shadow-sm">
-              <div className="relative w-full sm:max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                  <Search className="w-4 h-4" />
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white border border-outline-variant rounded-xl p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-xl">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar por título, autor, assunto, chamada..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-outline-variant bg-surface rounded-md focus:outline-none focus:border-primary text-sm placeholder:text-on-surface-variant/50"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Pesquisar por título, autor ou ISBN..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-outline-variant bg-surface rounded-md focus:outline-none focus:border-primary text-sm placeholder:text-on-surface-variant/50"
-                />
+                
+                {/* Filtro por Curso */}
+                <select
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  className="py-2 px-3 border border-outline-variant bg-surface text-sm rounded-md focus:outline-none focus:border-primary shrink-0 text-on-surface"
+                >
+                  <option value="Todos">Todos os Cursos</option>
+                  <option value="Multidisciplinar / Geral">Multidisciplinar</option>
+                  <option value="Análise e Desenvolvimento de Sistemas (ADS)">ADS</option>
+                  <option value="Engenharia de Software">Eng. Software</option>
+                  <option value="Engenharia Civil">Eng. Civil</option>
+                  <option value="Direito">Direito</option>
+                </select>
               </div>
 
               {/* Filtro de Categoria Rolável */}
-              <div className="flex gap-2 overflow-x-auto w-full sm:w-auto scrollbar-none py-1">
+              <div className="flex gap-2 overflow-x-auto w-full md:w-auto scrollbar-none py-1">
                 {categories.map((cat) => (
                   <button
                     key={cat}
@@ -316,32 +356,62 @@ export default function PortalPage() {
                       {/* Informações detalhadas */}
                       <div className="flex flex-col flex-1 justify-between py-0.5">
                         <div className="space-y-1">
-                          <span className="inline-block px-2 py-0.5 bg-primary/5 text-primary rounded text-[9px] font-bold uppercase tracking-wider">
-                            {book.categoria}
-                          </span>
-                          <h3 className="text-sm font-bold text-primary line-clamp-2" title={book.titulo}>
+                          <div className="flex justify-between items-start gap-1">
+                            <span className="inline-block px-2 py-0.5 bg-primary/5 text-primary rounded text-[9px] font-bold uppercase tracking-wider">
+                              {book.categoria}
+                            </span>
+                            <button
+                              onClick={() => setSelectedMaterialDetails(book)}
+                              className="text-[9px] text-primary font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                              title="Ver Ficha Técnica"
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>Ficha</span>
+                            </button>
+                          </div>
+                          <h3 className="text-sm font-bold text-primary line-clamp-2 leading-snug" title={book.titulo}>
                             {book.titulo}
                           </h3>
-                          <p className="text-xs text-on-surface-variant font-semibold">
+                          <p className="text-xs text-on-surface-variant font-semibold leading-none">
                             {book.autor}
                           </p>
+                          {book.numero_chamada && (
+                            <p className="text-[9px] text-on-surface-variant font-mono">
+                              Chamada: {book.numero_chamada}
+                            </p>
+                          )}
                         </div>
 
-                        <div className="flex justify-between items-center pt-2">
+                        <div className="flex justify-between items-center pt-2 mt-1">
                           <span className="text-[10px] text-on-surface-variant font-bold">
                             Ano: {book.ano}
                           </span>
 
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
-                            isAvailable
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-error-container text-on-error-container'
-                          }`}>
-                            {isAvailable 
-                              ? `Disponível (${book.exemplares_disponiveis}/${book.exemplares_total})` 
-                              : 'Indisponível'
-                            }
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {book.pdf_url && (
+                              <a 
+                                href={book.pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded hover:bg-primary/20 transition-all cursor-pointer shrink-0"
+                                title="Visualizar Documento"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>PDF</span>
+                              </a>
+                            )}
+                            
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                              isAvailable
+                                ? 'bg-primary/10 text-primary'
+                                : 'bg-error-container text-on-error-container'
+                            }`}>
+                              {isAvailable 
+                                ? `Disponível (${book.exemplares_disponiveis}/${book.exemplares_total})` 
+                                : 'Indisponível'
+                              }
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -472,6 +542,130 @@ export default function PortalPage() {
         )}
 
       </main>
+
+      {/* MODAL: Ficha Catalográfica / Ficha Técnica */}
+      {selectedMaterialDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-outline-variant w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface-container-low">
+              <h3 className="font-serif text-sm font-bold text-primary flex items-center gap-1.5">
+                <Library className="w-4 h-4" />
+                <span>Ficha Catalográfica / Registro Técnico</span>
+              </h3>
+              <button 
+                onClick={() => setSelectedMaterialDetails(null)}
+                className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="p-6 space-y-4 text-sm overflow-y-auto flex-1">
+              <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-lg font-mono text-xs text-on-surface-variant relative shadow-inner">
+                <div className="absolute top-4 right-4 text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-sans">
+                  {selectedMaterialDetails.categoria}
+                </div>
+                
+                <div className="space-y-3 leading-relaxed">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Código de Localização (Número de Chamada)</span>
+                    <p className="font-semibold text-on-surface">{selectedMaterialDetails.numero_chamada || 'Não catalogado'}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Autor Principal</span>
+                    <p className="font-semibold text-on-surface">{selectedMaterialDetails.autor}</p>
+                  </div>
+
+                  {selectedMaterialDetails.titulo_original && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Título Uniforme / Original</span>
+                      <p className="text-on-surface italic">{selectedMaterialDetails.titulo_original}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Título Principal</span>
+                    <p className="font-bold text-primary text-sm">{selectedMaterialDetails.titulo}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Publicação</span>
+                    <p className="text-on-surface">{selectedMaterialDetails.publicacao || `[S.l. : s.n.], ${selectedMaterialDetails.ano}`}</p>
+                  </div>
+
+                  {selectedMaterialDetails.descricao_fisica && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Descrição Física</span>
+                      <p className="text-on-surface">{selectedMaterialDetails.descricao_fisica}</p>
+                    </div>
+                  )}
+
+                  {selectedMaterialDetails.serie && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Série / Coleção</span>
+                      <p className="text-on-surface">{selectedMaterialDetails.serie}</p>
+                    </div>
+                  )}
+
+                  {selectedMaterialDetails.notas && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Notas / Observações</span>
+                      <p className="text-on-surface bg-surface-container/30 p-2 rounded whitespace-pre-line text-[11px] leading-normal">{selectedMaterialDetails.notas}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">ISBN / Identificador</span>
+                    <p className="text-on-surface font-semibold">{selectedMaterialDetails.isbn}</p>
+                  </div>
+
+                  {selectedMaterialDetails.assuntos && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Assunto(s) / Indexadores</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1 font-sans">
+                        {selectedMaterialDetails.assuntos.split(';').map((t, idx) => (
+                          <span key={idx} className="bg-primary/5 border border-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded">
+                            {t.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedMaterialDetails.curso && (
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary font-sans block leading-none mb-1">Curso Relacionado</span>
+                      <p className="text-on-surface font-semibold font-sans text-[11px]">{selectedMaterialDetails.curso}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <footer className="px-6 py-4 border-t border-outline-variant/40 bg-surface flex gap-3">
+              {selectedMaterialDetails.pdf_url && (
+                <a 
+                  href={selectedMaterialDetails.pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-on-primary py-2.5 rounded font-bold text-xs hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer text-center text-on-primary block hover:underline"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Visualizar Documento PDF</span>
+                </a>
+              )}
+              <button 
+                onClick={() => setSelectedMaterialDetails(null)}
+                className={`py-2.5 rounded font-bold text-xs hover:bg-surface-container active:scale-95 transition-all cursor-pointer text-center border border-outline text-primary ${selectedMaterialDetails.pdf_url ? 'w-[100px]' : 'flex-1'}`}
+              >
+                Fechar
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

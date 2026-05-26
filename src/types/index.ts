@@ -25,6 +25,15 @@ export interface Material {
   prateleira?: string;
   capa_url?: string;
   created_at: string;
+  pdf_url?: string;
+  curso?: string;
+  numero_chamada?: string;
+  titulo_original?: string;
+  publicacao?: string;
+  descricao_fisica?: string;
+  serie?: string;
+  notas?: string;
+  assuntos?: string;
 }
 
 export type LoanStatus = 'ativo' | 'atrasado' | 'devolvido';

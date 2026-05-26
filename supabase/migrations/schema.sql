@@ -42,6 +42,15 @@ CREATE TABLE public.acervo (
     exemplares_disponiveis INTEGER NOT NULL DEFAULT 1 CHECK (exemplares_disponiveis >= 0),
     prateleira TEXT,
     capa_url TEXT,
+    pdf_url TEXT,
+    curso TEXT DEFAULT 'Multidisciplinar / Geral',
+    numero_chamada TEXT,
+    titulo_original TEXT,
+    publicacao TEXT,
+    descricao_fisica TEXT,
+    serie TEXT,
+    notas TEXT,
+    assuntos TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT chk_disponiveis CHECK (exemplares_disponiveis <= exemplares_total)
 );
