@@ -18,7 +18,8 @@ import {
   UserCheck,
   AlertTriangle,
   FileText,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Usuario, Material, Circulacao } from '@/types';
@@ -47,6 +48,12 @@ export default function PortalPage() {
   const [selectedMaterialDetails, setSelectedMaterialDetails] = useState<Material | null>(null);
   const [activeTab, setActiveTab] = useState<'catalogo' | 'meus-livros' | 'meus-reservas'>('catalogo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  
+  // Confirmações e fila de espera
+  const [materialToReserve, setMaterialToReserve] = useState<any>(null);
+  const [isWaitingListMode, setIsWaitingListMode] = useState(false);
+  const [submittingReserva, setSubmittingReserva] = useState(false);
 
   // Categorias de livros para filtro rápido
   const categories = ['Todos', 'Programação', 'Banco de Dados', 'Infraestrutura', 'Monografia', 'TCC', 'Artigo Científico', 'Outros'];
@@ -158,19 +165,36 @@ export default function PortalPage() {
     return reservation ? reservation.status : null;
   };
 
-  // Solicita uma nova reserva de livro
-  const handleCreateReservation = async (bookId: string) => {
+  // Calcula a posição do leitor na fila de espera para determinado livro
+  const getQueuePosition = (bookId: string, resId?: string) => {
+    // Busca todas as reservas ativas (espera ou pendente) ordenadas cronologicamente
+    const activeReserves = reservas
+      .filter(r => r.material_id === bookId && (r.status === 'espera' || r.status === 'pendente'))
+      .sort((a, b) => new Date(a.data_solicitacao).getTime() - new Date(b.data_solicitacao).getTime());
+    
+    if (!resId) {
+      return activeReserves.length + 1;
+    }
+    
+    const index = activeReserves.findIndex(r => r.id === resId);
+    return index !== -1 ? index + 1 : activeReserves.length + 1;
+  };
+
+  // Solicita uma nova reserva de livro (ou fila de espera)
+  const handleCreateReservation = async (bookId: string, customStatus?: string) => {
     if (!profile) return;
-    setLoading(true);
+    setSubmittingReserva(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
     try {
+      const initialStatus = customStatus || 'pendente';
       const { error } = await supabase
         .from('reservas')
         .insert([
           {
             usuario_id: profile.id,
             material_id: bookId,
-            status: 'pendente'
+            status: initialStatus
           }
         ]);
 
@@ -178,9 +202,44 @@ export default function PortalPage() {
       
       // Recarrega os dados para atualizar instantaneamente na tela
       await loadPortalData();
+      setSuccessMsg(
+        initialStatus === 'espera'
+          ? 'Você entrou na fila de espera com sucesso!'
+          : 'Solicitação de reserva efetuada com sucesso!'
+      );
     } catch (err: any) {
       console.error('Erro ao solicitar reserva:', err);
       setErrorMsg(err.message || 'Falha ao solicitar reserva.');
+    } finally {
+      setSubmittingReserva(false);
+      setMaterialToReserve(null);
+    }
+  };
+
+  // Renova o prazo de retirada de uma reserva aprovada
+  const handleRenewReservation = async (reservaId: string, currentLimit: string) => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const newLimitDate = new Date(currentLimit);
+      newLimitDate.setDate(newLimitDate.getDate() + 3);
+
+      const { error } = await supabase
+        .from('reservas')
+        .update({
+          data_retirada_limite: newLimitDate.toISOString(),
+          renovacoes_contagem: 1
+        })
+        .eq('id', reservaId);
+
+      if (error) throw error;
+      
+      await loadPortalData();
+      setSuccessMsg('Prazo de retirada da reserva renovado por mais 3 dias com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao renovar reserva:', err);
+      setErrorMsg(err.message || 'Falha ao renovar reserva.');
     } finally {
       setLoading(false);
     }
@@ -297,6 +356,13 @@ export default function PortalPage() {
           <div className="bg-error-container border border-error/20 p-4 rounded-xl flex items-start gap-3">
             <Info className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
             <p className="text-sm font-semibold text-on-error-container">{errorMsg}</p>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex items-start gap-3 select-none animate-in fade-in duration-300">
+            <UserCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <p className="text-sm font-semibold text-primary">{successMsg}</p>
           </div>
         )}
 
@@ -475,12 +541,23 @@ export default function PortalPage() {
                         {/* Botão de Reserva Online */}
                         <div className="mt-3 pt-2.5 border-t border-outline-variant/30 flex justify-end">
                           {(() => {
-                            const resStatus = getBookReservationStatus(book.id);
+                            const userReserve = reservas.find(r => r.material_id === book.id && r.status !== 'finalizada' && r.status !== 'rejeitada');
+                            const resStatus = userReserve ? userReserve.status : null;
+
                             if (resStatus === 'pendente') {
                               return (
                                 <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 shadow-sm">
                                   <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
                                   <span>Reserva Pendente</span>
+                                </span>
+                              );
+                            }
+                            if (resStatus === 'espera') {
+                              const pos = getQueuePosition(book.id, userReserve?.id);
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 shadow-sm">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                  <span>Fila de Espera (Posição #{pos})</span>
                                 </span>
                               );
                             }
@@ -494,14 +571,24 @@ export default function PortalPage() {
                             }
                             if (!isAvailable) {
                               return (
-                                <span className="inline-flex items-center gap-1 bg-surface-container border border-outline-variant text-on-surface-variant/40 text-[10px] font-bold px-2.5 py-1 rounded-md cursor-not-allowed">
-                                  <span>Esgotado</span>
-                                </span>
+                                <button
+                                  onClick={() => {
+                                    setMaterialToReserve(book);
+                                    setIsWaitingListMode(true);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 border border-amber-200 bg-amber-50/50 hover:bg-amber-100/60 active:scale-95 text-amber-800 text-[10px] font-bold px-3 py-1.5 rounded-md transition-all cursor-pointer shadow-sm"
+                                >
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Fila de Espera</span>
+                                </button>
                               );
                             }
                             return (
                               <button
-                                onClick={() => handleCreateReservation(book.id)}
+                                onClick={() => {
+                                  setMaterialToReserve(book);
+                                  setIsWaitingListMode(false);
+                                }}
                                 className="inline-flex items-center gap-1.5 bg-primary text-on-primary hover:bg-primary/90 active:scale-95 text-[10px] font-bold px-3 py-1.5 rounded-md transition-all cursor-pointer shadow-sm hover:shadow"
                               >
                                 <BookMarked className="w-3.5 h-3.5" />
@@ -646,6 +733,7 @@ export default function PortalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {reservas.map((res) => {
                   const isPending = res.status === 'pendente';
+                  const isWaitingQueue = res.status === 'espera';
                   const isApproved = res.status === 'aprovada';
                   const isRejected = res.status === 'rejeitada';
                   const isFinalized = res.status === 'finalizada';
@@ -654,7 +742,7 @@ export default function PortalPage() {
                     <div 
                       key={res.id} 
                       className={`bg-white border rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all ${
-                        isPending 
+                        isPending || isWaitingQueue
                           ? 'border-amber-200 bg-gradient-to-b from-white to-amber-50/20' 
                           : isApproved
                           ? 'border-emerald-200 bg-gradient-to-b from-white to-emerald-50/20'
@@ -679,7 +767,7 @@ export default function PortalPage() {
 
                         {/* Status Tag */}
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          isPending
+                          isPending || isWaitingQueue
                             ? 'bg-amber-100 text-amber-800 border border-amber-200'
                             : isApproved
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 animate-pulse'
@@ -687,7 +775,7 @@ export default function PortalPage() {
                             ? 'bg-error-container text-on-error-container border border-error/20'
                             : 'bg-surface-container border border-outline text-on-surface-variant'
                         }`}>
-                          {isPending ? 'Pendente' : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Retirado (Finalizado)'}
+                          {isPending ? 'Pendente' : isWaitingQueue ? 'Em Fila de Espera' : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Retirado (Finalizado)'}
                         </span>
                       </div>
 
@@ -701,18 +789,49 @@ export default function PortalPage() {
                           <span>{formatDate(res.data_solicitacao)}</span>
                         </div>
 
-                        {isApproved && res.data_retirada_limite && (
-                          <div className="space-y-1 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/60">
-                            <span className="flex items-center gap-1.5 text-[10px] text-emerald-700 uppercase tracking-wider font-bold">
-                              <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                              Retirar até
+                        {isWaitingQueue && (
+                          <div className="space-y-1 bg-amber-50/60 p-2.5 rounded-lg border border-amber-100">
+                            <span className="flex items-center gap-1.5 text-[10px] text-amber-800 uppercase tracking-wider font-bold">
+                              <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                              Fila de Espera
                             </span>
-                            <span className="text-emerald-800 font-bold text-sm">
-                              {formatDate(res.data_retirada_limite)}
+                            <span className="text-amber-900 font-bold text-sm">
+                              Sua Posição: #{getQueuePosition(res.material_id, res.id)}
                             </span>
-                            <p className="text-[9px] text-emerald-600 font-normal leading-tight mt-0.5">
-                              Dirija-se ao balcão de atendimento para retirar seu exemplar.
+                            <p className="text-[9px] text-amber-700 font-normal leading-tight mt-0.5">
+                              Aguardando a devolução de exemplares físicos para homologação.
                             </p>
+                          </div>
+                        )}
+
+                        {isApproved && res.data_retirada_limite && (
+                          <div className="space-y-2 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/60">
+                            <div className="space-y-1">
+                              <span className="flex items-center gap-1.5 text-[10px] text-emerald-700 uppercase tracking-wider font-bold">
+                                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                                Retirar até
+                              </span>
+                              <span className="text-emerald-800 font-bold text-sm">
+                                {formatDate(res.data_retirada_limite)}
+                              </span>
+                              <p className="text-[9px] text-emerald-600 font-normal leading-tight mt-0.5">
+                                Dirija-se ao balcão de atendimento para retirar seu exemplar.
+                              </p>
+                            </div>
+                            
+                            {res.renovacoes_contagem === 0 ? (
+                              <button
+                                onClick={() => handleRenewReservation(res.id, res.data_retirada_limite)}
+                                className="w-full flex items-center justify-center gap-1 border border-emerald-200 bg-white hover:bg-emerald-50 active:scale-95 text-emerald-800 text-[10px] font-bold py-1.5 rounded transition-all cursor-pointer shadow-sm mt-1 animate-in fade-in duration-200"
+                              >
+                                <RefreshCw className="w-3 h-3 text-emerald-600" />
+                                <span>Renovar Retirada (+3 dias)</span>
+                              </button>
+                            ) : (
+                              <span className="block text-[9px] text-on-surface-variant/40 text-center italic font-semibold border-t border-emerald-100 pt-1.5">
+                                Prazo Renovado (Limite Atingido)
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -870,6 +989,86 @@ export default function PortalPage() {
                 className={`py-2.5 rounded font-bold text-xs hover:bg-surface-container active:scale-95 transition-all cursor-pointer text-center border border-outline text-primary ${selectedMaterialDetails.pdf_url ? 'w-[100px]' : 'flex-1'}`}
               >
                 Fechar
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirmação de Reserva Online */}
+      {materialToReserve && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-outline-variant w-full max-w-md rounded-xl shadow-xl overflow-hidden flex flex-col">
+            <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface-container-low">
+              <h3 className="font-serif text-sm font-bold text-primary flex items-center gap-1.5">
+                <BookMarked className="w-4 h-4 text-primary" />
+                <span>Confirmar Reserva Online</span>
+              </h3>
+              <button 
+                onClick={() => setMaterialToReserve(null)}
+                className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="p-6 space-y-4 text-center">
+              <div className="w-20 h-28 bg-surface-container border border-outline-variant rounded-md overflow-hidden shadow-inner flex items-center justify-center mx-auto">
+                {materialToReserve.capa_url ? (
+                  <img 
+                    src={materialToReserve.capa_url} 
+                    alt={materialToReserve.titulo} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <BookOpen className="w-8 h-8 text-on-surface-variant/30" />
+                )}
+              </div>
+
+              <div>
+                <h4 className="font-bold text-primary text-sm leading-snug">{materialToReserve.titulo}</h4>
+                <p className="text-xs text-on-surface-variant font-semibold mt-0.5">{materialToReserve.autor}</p>
+              </div>
+
+              <div className={`p-4 rounded-lg text-xs leading-relaxed font-semibold ${
+                isWaitingListMode 
+                  ? 'bg-amber-50 text-amber-900 border border-amber-100'
+                  : 'bg-primary/5 text-primary border border-primary/10'
+              }`}>
+                {isWaitingListMode ? (
+                  <p>
+                    Este livro está esgotado no momento. Ao confirmar, você entrará na <strong>Fila de Espera</strong> na posição <strong>#{getQueuePosition(materialToReserve.id)}</strong>. 
+                    A equipe irá analisar a solicitação quando novos exemplares forem devolvidos.
+                  </p>
+                ) : (
+                  <p>
+                    Esta reserva aguardará homologação da equipe da biblioteca. Após aprovada, você terá um prazo limite de <strong>3 dias corridos</strong> para retirar o exemplar físico no balcão de atendimento.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <footer className="px-6 py-4 border-t border-outline-variant/40 bg-surface flex gap-3">
+              <button 
+                onClick={() => handleCreateReservation(materialToReserve.id, isWaitingListMode ? 'espera' : 'pendente')}
+                disabled={submittingReserva}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-on-primary py-2.5 rounded font-bold text-xs hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer text-center"
+              >
+                {submittingReserva ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <BookMarked className="w-4 h-4" />
+                    <span>{isWaitingListMode ? 'Entrar na Fila' : 'Confirmar Reserva'}</span>
+                  </>
+                )}
+              </button>
+              <button 
+                onClick={() => setMaterialToReserve(null)}
+                disabled={submittingReserva}
+                className="py-2.5 px-4 border border-outline text-primary hover:bg-surface-container rounded font-bold text-xs active:scale-95 transition-all cursor-pointer text-center"
+              >
+                Cancelar
               </button>
             </footer>
           </div>

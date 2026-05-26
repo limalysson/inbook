@@ -52,6 +52,16 @@ export default function CirculacaoPage() {
   // Filtro de status de empréstimos ativos (todos | ativo | atrasado) suportando query params
   const [filterType, setFilterType] = useState<'todos' | 'ativo' | 'atrasado'>('todos');
 
+  // Calcula a posição da fila de espera no painel administrativo
+  const getAdminQueuePosition = (bookId: string, resId: string) => {
+    const bookReserves = reservas
+      .filter(r => r.material_id === bookId && (r.status === 'espera' || r.status === 'pendente'))
+      .sort((a, b) => new Date(a.data_solicitacao).getTime() - new Date(b.data_solicitacao).getTime());
+    
+    const index = bookReserves.findIndex(r => r.id === resId);
+    return index !== -1 ? index + 1 : bookReserves.length + 1;
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -821,6 +831,7 @@ export default function CirculacaoPage() {
                 ) : reservas.length > 0 ? (
                   reservas.map((res) => {
                     const isPending = res.status === 'pendente';
+                    const isWaitingQueue = res.status === 'espera';
                     const isApproved = res.status === 'aprovada';
                     const isRejected = res.status === 'rejeitada';
                     const isFinalized = res.status === 'finalizada';
@@ -854,13 +865,15 @@ export default function CirculacaoPage() {
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                               isPending
                                 ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                : isWaitingQueue
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200 animate-pulse'
                                 : isApproved
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : isRejected
                                 ? 'bg-error-container text-on-error-container border border-error/20'
                                 : 'bg-surface-container border border-outline text-on-surface-variant'
                             }`}>
-                              {isPending ? 'Pendente' : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Concluída'}
+                              {isPending ? 'Pendente' : isWaitingQueue ? `Fila (Posição #${getAdminQueuePosition(res.material_id, res.id)})` : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Concluída'}
                             </span>
                             {isApproved && res.data_retirada_limite && (
                               <p className="text-[9px] text-emerald-700 font-bold">
@@ -883,17 +896,17 @@ export default function CirculacaoPage() {
                         {/* Ações */}
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
-                            {isPending && (
+                            {(isPending || isWaitingQueue) && (
                               <>
                                 <button
                                   onClick={() => handleAprovarReserva(res)}
-                                  className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+                                  className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
                                 >
                                   Aprovar
                                 </button>
                                 <button
                                   onClick={() => handleReprovarReserva(res)}
-                                  className="px-3 py-1.5 border border-outline text-secondary hover:bg-error-container/20 text-[11px] font-bold rounded active:scale-[0.98] transition-all cursor-pointer"
+                                  className="px-3 py-1.5 border border-outline text-secondary hover:bg-error-container/20 text-[11px] font-bold rounded active:scale-95 transition-all cursor-pointer"
                                 >
                                   Reprovar
                                 </button>
@@ -903,13 +916,13 @@ export default function CirculacaoPage() {
                             {isApproved && (
                               <button
                                 onClick={() => handleConfirmarRetiradaReserva(res)}
-                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
                               >
                                 Confirmar Retirada
                               </button>
                             )}
 
-                            {!isPending && !isApproved && (
+                            {!isPending && !isWaitingQueue && !isApproved && (
                               <span className="text-xs text-on-surface-variant/40 italic">Sem ações pendentes</span>
                             )}
                           </div>
