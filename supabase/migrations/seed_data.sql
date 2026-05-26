@@ -157,4 +157,17 @@ BEGIN
   INSERT INTO public.circulacao (id, usuario_id, material_id, data_emprestimo, data_devolucao_prevista, data_devolucao_real, status, renovacoes_contagem)
   VALUES (gen_random_uuid(), u10_id, b4_id, now() - INTERVAL '7 days', now() + INTERVAL '7 days', now(), 'devolvido', 0);
 
+  -- Correção de segurança: evita "Database error querying schema" no Supabase Auth.
+  -- Garante que colunas de tokens não fiquem como NULL para os usuários inseridos via SQL manual.
+  UPDATE auth.users 
+  SET 
+    confirmation_token = COALESCE(confirmation_token, ''),
+    email_change = COALESCE(email_change, ''),
+    email_change_token_new = COALESCE(email_change_token_new, ''),
+    recovery_token = COALESCE(recovery_token, '')
+  WHERE confirmation_token IS NULL 
+     OR email_change IS NULL 
+     OR email_change_token_new IS NULL 
+     OR recovery_token IS NULL;
+
 END $$;
