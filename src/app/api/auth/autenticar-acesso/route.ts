@@ -123,8 +123,9 @@ export async function POST(request: Request) {
     }
 
     if (!session) {
+      // Se o cadastro funcionou mas a sessão é nula, a confirmação de e-mail está ligada no Supabase.
       return NextResponse.json(
-        { error: 'Não foi possível iniciar a sessão de login.' },
+        { error: 'A conta foi criada com sucesso, mas a confirmação de e-mail está ativa no painel do Supabase. Para usar o login por código de acesso (OTP), desative a opção "Confirm email" em Authentication > Providers > Email no painel do Supabase.' },
         { status: 500 }
       );
     }
