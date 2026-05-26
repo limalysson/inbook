@@ -42,7 +42,7 @@ export default function BottomNavBar() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-40 h-16 bg-surface border-t border-outline-variant/40 md:hidden flex justify-around items-center px-4 shadow-[0_-2px_10px_rgba(0,0,0,0.01)] select-none">
+    <nav className="fixed bottom-0 left-0 w-full z-40 h-16 bg-surface border-t border-outline-variant/40 md:hidden flex justify-around items-center px-4 shadow-[0_-2px_10px_rgba(0,0,0,0.01)] select-none print:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;

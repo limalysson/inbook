@@ -7,7 +7,8 @@ import {
   LayoutDashboard, 
   Library, 
   Users, 
-  ArrowLeftRight 
+  ArrowLeftRight,
+  BarChart3
 } from 'lucide-react';
 
 interface SidebarNavigationProps {
@@ -44,6 +45,11 @@ export default function SidebarNavigation({ isOpen = false, onClose }: SidebarNa
       href: '/admin/circulacao',
       icon: ArrowLeftRight,
     },
+    {
+      label: 'Relatórios',
+      href: '/admin/relatorios',
+      icon: BarChart3,
+    },
   ];
 
   return (
@@ -52,12 +58,12 @@ export default function SidebarNavigation({ isOpen = false, onClose }: SidebarNa
       {isOpen && (
         <div 
           onClick={onClose}
-          className="fixed inset-0 z-30 bg-primary/20 backdrop-blur-sm md:hidden transition-opacity"
+          className="fixed inset-0 z-30 bg-primary/20 backdrop-blur-sm md:hidden transition-opacity print:hidden"
         />
       )}
 
       <aside
-        className={`fixed top-16 bottom-0 left-0 z-30 w-64 bg-surface-container-low border-r border-outline-variant/40 flex flex-col p-4 gap-2 transition-transform duration-300 md:translate-x-0 ${
+        className={`fixed top-16 bottom-0 left-0 z-30 w-64 bg-surface-container-low border-r border-outline-variant/40 flex flex-col p-4 gap-2 transition-transform duration-300 md:translate-x-0 print:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

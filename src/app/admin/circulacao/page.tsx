@@ -459,7 +459,7 @@ export default function CirculacaoPage() {
                       onClick={() => handleReturnBook(loan)}
                       className="flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm text-center"
                     >
-                      Nova Devolução
+                      Registrar Devolução
                     </button>
                     <button
                       onClick={() => handleRenewBook(loan)}

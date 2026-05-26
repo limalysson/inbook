@@ -39,7 +39,7 @@ export default function AdminShell({ children, userEmail, userName }: AdminShell
         />
 
         {/* Contêiner Principal de Conteúdo Dinâmico */}
-        <main className="flex-1 md:ml-64 p-6 bg-surface-container-lowest min-h-[calc(100vh-4rem)]">
+        <main className="flex-1 md:ml-64 p-6 bg-surface-container-lowest min-h-[calc(100vh-4rem)] print:ml-0 print:p-0 print:bg-white">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

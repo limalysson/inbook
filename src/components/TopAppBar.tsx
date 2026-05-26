@@ -37,7 +37,7 @@ export default function TopAppBar({ onMenuClick, userEmail, userName }: TopAppBa
     : 'AD';
 
   return (
-    <header className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant/40 flex justify-between items-center px-6 py-3 h-16 shadow-[0_1px_3px_rgba(0,0,0,0.02)] select-none">
+    <header className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant/40 flex justify-between items-center px-6 py-3 h-16 shadow-[0_1px_3px_rgba(0,0,0,0.02)] select-none print:hidden">
       
       {/* Lado Esquerdo: Marca e Menu Sanduíche para Mobile */}
       <div className="flex items-center gap-3">
