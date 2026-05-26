@@ -21,6 +21,7 @@ import {
   Info,
   Settings
 } from 'lucide-react';
+import AnimatedCounter from '@/components/AnimatedCounter';
 
 /**
  * Página de Gestão de Usuários (Diretório de Leitores).
@@ -53,18 +54,48 @@ function UsuariosPageContent() {
 
   // Estados de busca e filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   // Estados do Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
   const [newName, setNewName] = useState('');
   const [newMatricula, setNewMatricula] = useState('');
   const [newType, setNewType] = useState<UserType>('estudante');
   const [newDepartment, setNewDepartment] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [newEmail, setNewEmail] = useState(''); // Armazena apenas o prefixo
   const [newPhone, setNewPhone] = useState('');
   const [newStatus, setNewStatus] = useState(true);
+
+  const resetForm = () => {
+    setNewName('');
+    setNewMatricula('');
+    setNewType('estudante');
+    setNewDepartment('');
+    setNewEmail('');
+    setNewPhone('');
+    setNewStatus(true);
+    setEditingUsuario(null);
+  };
+
+  const startEditUsuario = (user: Usuario) => {
+    setEditingUsuario(user);
+    setNewName(user.nome_completo);
+    setNewMatricula(user.matricula);
+    setNewType(user.tipo);
+    setNewDepartment(user.curso_departamento || '');
+    
+    // Extrai apenas o prefixo do e-mail
+    const prefix = user.email.split('@')[0];
+    setNewEmail(prefix);
+    
+    setNewPhone(user.telefone || '');
+    setNewStatus(user.status);
+    setIsModalOpen(true);
+  };
 
   // Estados das Regras Configuráveis (localStorage com fallbacks padrão)
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
@@ -130,64 +161,82 @@ function UsuariosPageContent() {
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
+      resetForm();
       setIsModalOpen(true);
     }
   }, [searchParams]);
 
-  // Adiciona novo usuário (Simulado sem Auth Admin por chaves anon, ou inserindo perfil direto)
-  const handleAddUsuario = async (e: React.FormEvent) => {
+  // Cadastra ou edita o leitor no Supabase
+  const handleSaveUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
     try {
-      // Como estamos logados como Gestor com privilégios de escrita RLS,
-      // podemos inserir diretamente na tabela usuarios.
-      // NOTA: Para uso completo de login, o usuário é cadastrado na auth.users, que replica via trigger.
-      // Esta inserção direta atende ao cadastro do leitor para empréstimos físicos de balcão.
-      
-      // Geramos um UUID temporário para simular o cadastro local sem criar no Auth global se não for necessário
-      const randomUuid = crypto.randomUUID();
+      // Formata o e-mail anexando o domínio institucional obrigatoriamente
+      const fullEmail = `${newEmail.trim().toLowerCase()}@inbec.edu.br`;
 
-      const { error } = await supabase
-        .from('usuarios')
-        .insert([
-          {
-            id: randomUuid,
+      if (editingUsuario) {
+        // Modo de Edição
+        const { error } = await supabase
+          .from('usuarios')
+          .update({
             nome_completo: newName.trim(),
             matricula: newMatricula.trim(),
             tipo: newType,
             curso_departamento: newDepartment.trim() || null,
-            email: newEmail.trim().toLowerCase(),
+            email: fullEmail,
             telefone: newPhone.trim() || null,
             status: newStatus,
+          })
+          .eq('id', editingUsuario.id);
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Matrícula ou E-mail já cadastrado no sistema.');
           }
-        ]);
-
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error('Matrícula ou E-mail já cadastrado no sistema.');
+          throw error;
         }
-        throw error;
-      }
 
-      setSuccessMsg('Usuário cadastrado com sucesso!');
+        setSuccessMsg('Perfil do leitor atualizado com sucesso!');
+      } else {
+        // Modo de Cadastro
+        const randomUuid = crypto.randomUUID();
+
+        const { error } = await supabase
+          .from('usuarios')
+          .insert([
+            {
+              id: randomUuid,
+              nome_completo: newName.trim(),
+              matricula: newMatricula.trim(),
+              tipo: newType,
+              curso_departamento: newDepartment.trim() || null,
+              email: fullEmail,
+              telefone: newPhone.trim() || null,
+              status: newStatus,
+            }
+          ]);
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Matrícula ou E-mail já cadastrado no sistema.');
+          }
+          throw error;
+        }
+
+        setSuccessMsg('Leitor cadastrado com sucesso!');
+      }
       
       // Limpa formulário e fecha modal
-      setNewName('');
-      setNewMatricula('');
-      setNewType('estudante');
-      setNewDepartment('');
-      setNewEmail('');
-      setNewPhone('');
-      setNewStatus(true);
+      resetForm();
       setIsModalOpen(false);
 
       // Recarrega listagem
       fetchUsuarios();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Falha ao cadastrar leitor.');
+      setErrorMsg(err.message || 'Falha ao salvar leitor.');
     } finally {
       setSubmitting(false);
     }
@@ -220,18 +269,34 @@ function UsuariosPageContent() {
 
   // Filtros aplicados na listagem
   const filteredUsuarios = usuarios.filter((user) => {
+    // 1. Filtro textual por Nome, Matrícula ou E-mail
     const matchesSearch = 
       user.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.matricula.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
+    // 2. Filtro dinâmico por Tipo de Vínculo
+    const matchesType = !selectedType || user.tipo === selectedType;
+
+    // 3. Filtro dinâmico por Curso / Departamento
+    let matchesCourse = true;
+    if (selectedCourse) {
+      if (selectedCourse === 'ADS') {
+        matchesCourse = 
+          user.curso_departamento === 'Análise e Des. de Sistemas' || 
+          user.curso_departamento === 'Análise e Desenvolvimento de Sistemas (ADS)';
+      } else {
+        matchesCourse = user.curso_departamento === selectedCourse;
+      }
+    }
+
+    return matchesSearch && matchesType && matchesCourse;
   });
 
-  // Estatísticas Rápidas
-  const totalMembros = usuarios.length || 1284;
-  const totalEstudantes = usuarios.filter((u) => u.tipo === 'estudante').length || 942;
-  const totalDocentes = usuarios.filter((u) => u.tipo === 'docente').length || 342;
+  // Estatísticas Rápidas (inicializadas em 0 e atualizadas de forma reativa)
+  const totalMembros = usuarios.length;
+  const totalEstudantes = usuarios.filter((u) => u.tipo === 'estudante').length;
+  const totalDocentes = usuarios.filter((u) => u.tipo === 'docente').length;
 
   // Paginação
   const totalPages = Math.ceil(filteredUsuarios.length / itemsPerPage) || 1;
@@ -240,36 +305,7 @@ function UsuariosPageContent() {
     currentPage * itemsPerPage
   );
 
-  // Dados mockados ilustrativos para demonstrar layout se o banco estiver vazio
-  const ilustrativos = [
-    {
-      id: '1',
-      nome_completo: 'Helena Santos',
-      matricula: '2023048912',
-      tipo: 'estudante' as UserType,
-      curso_departamento: 'Literatura Moderna',
-      email: 'helena.santos@inbec.edu.br',
-      status: true
-    },
-    {
-      id: '2',
-      nome_completo: 'Prof. Arthur Mendes',
-      matricula: 'F-001928',
-      tipo: 'docente' as UserType,
-      curso_departamento: 'Depto. de Filosofia',
-      email: 'arthur.mendes@inbec.edu.br',
-      status: true
-    },
-    {
-      id: '3',
-      nome_completo: 'Beatriz Lima',
-      matricula: '2021003445',
-      tipo: 'estudante' as UserType,
-      curso_departamento: 'Ciência da Informação',
-      email: 'beatriz.lima@inbec.edu.br',
-      status: false
-    }
-  ];
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -295,21 +331,27 @@ function UsuariosPageContent() {
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-surface-container-low border border-outline-variant/20 p-5 rounded-xl flex flex-col gap-1">
           <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Total de Leitores</span>
-          <span className="font-serif text-3xl font-bold text-primary">{totalMembros}</span>
+          <span className="font-serif text-3xl font-bold text-primary">
+            <AnimatedCounter value={totalMembros} />
+          </span>
         </div>
         <div className="bg-surface-container-low border border-outline-variant/20 p-5 rounded-xl flex flex-col gap-1">
           <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Alunos Ativos</span>
-          <span className="font-serif text-3xl font-bold text-primary">{totalEstudantes}</span>
+          <span className="font-serif text-3xl font-bold text-primary">
+            <AnimatedCounter value={totalEstudantes} />
+          </span>
         </div>
         <div className="bg-surface-container-low border border-outline-variant/20 p-5 rounded-xl flex flex-col gap-1">
           <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Docentes / Servidores</span>
-          <span className="font-serif text-3xl font-bold text-primary">{totalDocentes}</span>
+          <span className="font-serif text-3xl font-bold text-primary">
+            <AnimatedCounter value={totalDocentes} />
+          </span>
         </div>
       </section>
 
       {/* Filtros e Pesquisa */}
-      <section className="flex gap-4 items-center bg-surface-container/20 p-4 border border-outline-variant/30 rounded-lg">
-        <div className="flex-1 relative">
+      <section className="flex flex-col md:flex-row gap-4 items-center bg-surface-container/20 p-4 border border-outline-variant/30 rounded-lg">
+        <div className="flex-1 relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant w-4 h-4" />
           <input
             type="text"
@@ -321,6 +363,42 @@ function UsuariosPageContent() {
             }}
             className="w-full pl-9 pr-4 py-2 bg-white border border-outline-variant rounded-md text-sm focus:outline-none focus:border-primary transition-all"
           />
+        </div>
+
+        <div className="flex gap-4 w-full md:w-auto">
+          {/* Seletor de Vínculo */}
+          <select
+            value={selectedType}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="flex-1 md:flex-initial py-2 px-3 border border-outline-variant bg-white text-sm rounded-md focus:outline-none focus:border-primary"
+          >
+            <option value="">Todos os Vínculos</option>
+            <option value="estudante">Alunos</option>
+            <option value="docente">Docentes</option>
+            <option value="funcionario">Funcionários</option>
+          </select>
+
+          {/* Seletor de Curso / Departamento */}
+          <select
+            value={selectedCourse}
+            onChange={(e) => {
+              setSelectedCourse(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="flex-1 md:flex-initial py-2 px-3 border border-outline-variant bg-white text-sm rounded-md focus:outline-none focus:border-primary"
+          >
+            <option value="">Todos os Cursos</option>
+            <option value="ADS">ADS</option>
+            <option value="Engenharia de Software">Eng. Software</option>
+            <option value="Engenharia Civil">Eng. Civil</option>
+            <option value="Direito">Direito</option>
+            <option value="Departamento de TI">Dep. TI</option>
+            <option value="Departamento de Engenharia">Dep. Engenharia</option>
+            <option value="Ciência da Computação">Ciência da Computação</option>
+          </select>
         </div>
       </section>
 
@@ -388,49 +466,26 @@ function UsuariosPageContent() {
                       </button>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-on-surface-variant hover:text-primary p-1.5 rounded-full transition-colors cursor-pointer">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex justify-end items-center gap-2">
+                        <button
+                          onClick={() => startEditUsuario(user)}
+                          className="p-1.5 border border-outline text-primary rounded hover:bg-surface-container active:scale-95 transition-all cursor-pointer"
+                          title="Editar Perfil"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
-                // Fallback estético caso o banco esteja limpo no primeiro acesso
-                ilustrativos.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface-container/10 transition-colors select-none">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shadow-sm">
-                          {user.nome_completo.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-primary">{user.nome_completo}</p>
-                          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
-                            {user.tipo}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-on-surface font-semibold">{user.matricula}</td>
-                    <td className="px-6 py-4 text-on-surface-variant">{user.curso_departamento}</td>
-                    <td className="px-6 py-4 text-on-surface-variant">{user.email}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        user.status 
-                          ? 'bg-surface-container-high border border-primary/20 text-primary'
-                          : 'bg-error-container border border-error/20 text-on-error-container'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.status ? 'bg-primary' : 'bg-secondary'}`} />
-                        {user.status ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-on-surface-variant hover:text-primary p-1.5 rounded-full transition-colors cursor-pointer">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant font-semibold">
+                    <User className="w-8 h-8 mx-auto text-primary/40 mb-2" />
+                    <p>Nenhum usuário cadastrado.</p>
+                    <p className="text-xs font-normal opacity-70 mt-1">Os leitores acadêmicos serão exibidos aqui à medida que logarem ou se registrarem na biblioteca.</p>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -439,7 +494,7 @@ function UsuariosPageContent() {
         {/* Paginação */}
         <div className="px-6 py-4 bg-surface-container-low flex justify-between items-center border-t border-outline-variant/40">
           <p className="text-xs text-on-surface-variant font-semibold">
-            Exibindo {filteredUsuarios.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredUsuarios.length)} de {filteredUsuarios.length || ilustrativos.length} entradas
+            Exibindo {filteredUsuarios.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredUsuarios.length)} de {filteredUsuarios.length} entradas
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -635,22 +690,27 @@ function UsuariosPageContent() {
         </div>
       )}
 
-      {/* MODAL: Cadastrar Novo Leitor */}
+      {/* MODAL: Cadastrar / Editar Leitor */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white border border-outline-variant w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col">
             
             <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
-              <h3 className="font-serif text-lg font-bold text-primary">Cadastrar Novo Leitor</h3>
+              <h3 className="font-serif text-lg font-bold text-primary">
+                {editingUsuario ? 'Editar Perfil do Leitor' : 'Cadastrar Novo Leitor'}
+              </h3>
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  resetForm();
+                  setIsModalOpen(false);
+                }}
                 className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </header>
 
-            <form onSubmit={handleAddUsuario} className="p-6 space-y-4">
+            <form onSubmit={handleSaveUsuario} className="p-6 space-y-4">
               {errorMsg && (
                 <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
                   <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
@@ -711,14 +771,19 @@ function UsuariosPageContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">E-mail Institucional</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="leitor@inbec.edu.br"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
-                  />
+                  <div className="flex items-stretch">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: joao.silva"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className="flex-1 h-9 px-3 border border-outline-variant rounded-l focus:outline-none focus:border-primary text-sm min-w-0"
+                    />
+                    <span className="bg-surface-container-high text-on-surface-variant px-3 border border-l-0 border-outline-variant rounded-r text-xs font-bold font-mono flex items-center justify-center shrink-0 select-none">
+                      @inbec.edu.br
+                    </span>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Telefone de Contato</label>
@@ -753,7 +818,10 @@ function UsuariosPageContent() {
               <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    resetForm();
+                    setIsModalOpen(false);
+                  }}
                   className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
                 >
                   Cancelar
@@ -766,7 +834,7 @@ function UsuariosPageContent() {
                   {submitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span>Cadastrar Leitor</span>
+                    <span>{editingUsuario ? 'Salvar Alterações' : 'Cadastrar Leitor'}</span>
                   )}
                 </button>
               </footer>

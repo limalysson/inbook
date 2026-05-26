@@ -413,39 +413,7 @@ function AcervoPageContent() {
     new Set(materiais.map((item) => item.categoria))
   ).filter(Boolean);
 
-  // Dados mockados ilustrativos para demonstrar layout se o banco estiver vazio
-  const ilustrativos = [
-    {
-      id: '1',
-      titulo: 'The Archetype of Wisdom',
-      autor: 'Dr. Elena Rostova',
-      isbn: '978-3-16-148410-0',
-      categoria: 'Filosofia',
-      exemplares_disponiveis: 1,
-      exemplares_total: 1,
-      prateleira: 'Prateleira: A-102'
-    },
-    {
-      id: '2',
-      titulo: 'Quantum Linguistics',
-      autor: 'Marcus Thorne',
-      isbn: '978-0-262-13451-4',
-      categoria: 'Ciência',
-      exemplares_disponiveis: 0,
-      exemplares_total: 2,
-      prateleira: 'Prateleira: C-404'
-    },
-    {
-      id: '3',
-      titulo: 'Medieval Cartography',
-      autor: 'Prof. Julian Sorel',
-      isbn: '978-1-59420-229-2',
-      categoria: 'História',
-      exemplares_disponiveis: 5,
-      exemplares_total: 5,
-      prateleira: 'Ref.- R-002'
-    }
-  ];
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -648,44 +616,13 @@ function AcervoPageContent() {
                   </tr>
                 ))
               ) : (
-                // Fallback de dados ilustrativos caso o banco esteja limpo, para manter apelo premium
-                ilustrativos.map((item) => (
-                  <tr key={item.id} className="hover:bg-surface-container/10 transition-colors select-none">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-12 bg-surface-container-high rounded-sm flex items-center justify-center text-primary border border-outline-variant/30">
-                          <BookOpen className="w-4 h-4 opacity-50" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-primary">{item.titulo}</p>
-                          <p className="text-[10px] text-on-surface-variant italic">{item.prateleira}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-on-surface">{item.autor}</td>
-                    <td className="px-6 py-4 text-on-surface-variant font-mono text-xs">{item.isbn}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-0.5 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold">
-                        {item.categoria}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          item.exemplares_disponiveis > 0 ? 'bg-primary' : 'bg-secondary'
-                        }`} />
-                        <span className="font-semibold text-xs">
-                          {item.exemplares_disponiveis} de {item.exemplares_total}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-on-surface-variant hover:text-primary p-1.5 rounded-full transition-colors cursor-pointer">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant font-semibold">
+                    <BookOpen className="w-8 h-8 mx-auto text-primary/40 mb-2" />
+                    <p>Nenhum item cadastrado no acervo.</p>
+                    <p className="text-xs font-normal opacity-70 mt-1">Use os botões no topo para adicionar o primeiro livro ou documento.</p>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -694,7 +631,7 @@ function AcervoPageContent() {
         {/* Paginação do Rodapé */}
         <div className="px-6 py-4 bg-surface-container-low flex justify-between items-center border-t border-outline-variant/40">
           <p className="text-xs text-on-surface-variant font-semibold">
-            Exibindo {filteredMateriais.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredMateriais.length)} de {filteredMateriais.length || ilustrativos.length} entradas
+            Exibindo {filteredMateriais.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredMateriais.length)} de {filteredMateriais.length} entradas
           </p>
           <div className="flex items-center gap-1">
             <button

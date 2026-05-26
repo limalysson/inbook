@@ -18,6 +18,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import AnimatedCounter from '@/components/AnimatedCounter';
 
 /**
  * Página de Controle de Circulação.
@@ -307,31 +308,6 @@ export default function CirculacaoPage() {
   
   const historico = emprestimos.filter((e) => e.status === 'devolvido');
 
-  // Filtra também a lista de dados ilustrativos para manter o visual coerente se o banco estiver limpo
-  const ilustrativosAtivos = [
-    {
-      id: '1',
-      usuarios: { nome_completo: 'Ana Beatriz Silva', matricula: '#4829' },
-      acervo: { titulo: 'O Nome da Rosa', autor: 'Umberto Eco' },
-      data_devolucao_prevista: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 dias
-      status: 'ativo' as any,
-      renovacoes_contagem: 0,
-      material_id: '1'
-    },
-    {
-      id: '2',
-      usuarios: { nome_completo: 'Ricardo Mendes', matricula: '#5102' },
-      acervo: { titulo: 'Crítica da Razão Pura', autor: 'Immanuel Kant' },
-      data_devolucao_prevista: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // Atrasado
-      status: 'atrasado' as any,
-      renovacoes_contagem: 1,
-      material_id: '2'
-    }
-  ].filter((e) => {
-    if (filterType === 'ativo') return e.status === 'ativo';
-    if (filterType === 'atrasado') return e.status === 'atrasado';
-    return true;
-  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -371,7 +347,7 @@ export default function CirculacaoPage() {
               : 'border-transparent text-on-surface-variant hover:text-primary'
           }`}
         >
-          Empréstimos Ativos ({ativos.length || ilustrativosAtivos.length})
+          Empréstimos Ativos (<AnimatedCounter value={ativos.length} />)
         </button>
         <button
           onClick={() => setActiveTab('historico')}
@@ -381,7 +357,7 @@ export default function CirculacaoPage() {
               : 'border-transparent text-on-surface-variant hover:text-primary'
           }`}
         >
-          Histórico de Transações ({historico.length})
+          Histórico de Transações (<AnimatedCounter value={historico.length} />)
         </button>
         <button
           onClick={() => setActiveTab('novo')}
@@ -498,64 +474,14 @@ export default function CirculacaoPage() {
               );
             })
           ) : (
-            // Dados Ilustrativos Premium se o banco estiver limpo
-            ilustrativosAtivos.map((loan) => {
-              const isOverdue = loan.status === 'atrasado';
-              
-              return (
-                <div key={loan.id} className="bg-white border border-outline-variant rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all select-none opacity-90">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-primary">{loan.usuarios.nome_completo}</h3>
-                        <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
-                          Matrícula: {loan.usuarios.matricula}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      isOverdue 
-                        ? 'bg-error-container border border-error/20 text-on-error-container'
-                        : 'bg-surface-container-high border border-primary/20 text-primary'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOverdue ? 'bg-secondary' : 'bg-primary'}`} />
-                      {isOverdue ? 'Atrasado' : 'No Prazo'}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-outline-variant/30 pt-3 flex justify-between items-start gap-3">
-                    <div className="flex items-start gap-3">
-                      <BookOpen className="w-5 h-5 text-on-surface-variant/60 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-primary">{loan.acervo.titulo}</h4>
-                        <p className="text-[10px] text-on-surface-variant mt-0.5">
-                          Entrega prevista: {formatDate(loan.data_devolucao_prevista)} • Renovado ({loan.renovacoes_contagem}/3)
-                        </p>
-                      </div>
-                    </div>
-
-                    {isOverdue && (
-                      <div className="text-right shrink-0">
-                        <span className="text-[9px] text-secondary font-bold block uppercase tracking-wider">Multa</span>
-                        <span className="text-xs font-bold text-secondary">R$ 10.00</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button className="flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm text-center">
-                      Nova Devolução
-                    </button>
-                    <button className="flex-1 py-2 border border-outline text-primary text-xs font-bold rounded hover:bg-surface-container active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center">
-                      Renovar Prazo
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+            <div className="col-span-2 py-12 text-center bg-white border border-outline-variant rounded-xl p-8 shadow-sm">
+              <History className="w-12 h-12 mx-auto text-primary/40 mb-3 animate-pulse" />
+              <h3 className="text-base font-bold text-primary">Nenhum empréstimo ativo registrado</h3>
+              <p className="text-xs text-on-surface-variant mt-2 max-w-sm mx-auto font-normal leading-normal">
+                Não há empréstimos de materiais em andamento no momento. 
+                Clique na aba "Novo Empréstimo" acima para registrar uma transação.
+              </p>
+            </div>
           )}
         </div>
         </div>

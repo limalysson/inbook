@@ -2,8 +2,6 @@ import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { 
   BookOpen, 
-  TrendingUp, 
-  AlertTriangle, 
   Calendar, 
   Lightbulb, 
   ArrowRight, 
@@ -15,6 +13,7 @@ import {
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 import EventsCard from '@/components/EventsCard';
+import DashboardStats from '@/components/DashboardStats';
 
 /**
  * Página do Dashboard Administrativo.
@@ -69,23 +68,6 @@ export default async function DashboardPage() {
     .gte('data_evento', new Date().toISOString())
     .order('data_evento', { ascending: true });
 
-  // Fallbacks ilustrativos caso o banco esteja vazio no primeiro acesso
-  const ilustrativosEmprestimos = [
-    {
-      id: '1',
-      acervo: { titulo: 'Código Limpo (Clean Code)', autor: 'Robert C. Martin', capa_url: null },
-      usuarios: { nome_completo: 'João Silva', email: 'joao.silva@inbec.edu.br' },
-      data_emprestimo: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'ativo'
-    },
-    {
-      id: '2',
-      acervo: { titulo: 'Introdução aos Algoritmos', autor: 'Thomas H. Cormen', capa_url: null },
-      usuarios: { nome_completo: 'Maria Santos', email: 'maria.santos@inbec.edu.br' },
-      data_emprestimo: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'atrasado'
-    }
-  ];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -118,67 +100,12 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {/* Grid de Estatísticas (Bento Style) */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        
-        {/* Total de Títulos */}
-        <Link
-          href="/admin/acervo"
-          className="md:col-span-2 bg-primary-container text-on-primary-container p-6 rounded-xl flex flex-col justify-between shadow-sm relative overflow-hidden group hover:opacity-95 transition-all cursor-pointer"
-        >
-          <div className="relative z-10 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-on-primary-container/85">
-              Total de Títulos Cadastrados
-            </h3>
-            <p className="font-serif text-5xl font-bold tracking-tight text-white leading-none">
-              {(totalTitulos || 0).toLocaleString('pt-BR')}
-            </p>
-            <p className="text-xs text-on-primary-container/70 font-sans">
-              +12 novos adicionados este mês no acervo
-            </p>
-          </div>
-          <BookOpen className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 group-hover:scale-105 transition-transform duration-500 text-white" />
-        </Link>
-
-        {/* Empréstimos Ativos */}
-        <Link
-          href="/admin/circulacao?status=ativo"
-          className="bg-surface-container border border-outline-variant/20 p-6 rounded-xl flex flex-col justify-between hover:bg-surface-container-high hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              Empréstimos Ativos
-            </h3>
-            <p className="font-serif text-4xl font-bold text-primary leading-none">
-              {totalAtivos || 0}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-primary mt-4">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-semibold">Uso frequente do acervo</span>
-          </div>
-        </Link>
-
-        {/* Livros Atrasados */}
-        <Link
-          href="/admin/circulacao?status=atrasado"
-          className="bg-error-container border border-error/20 p-6 rounded-xl flex flex-col justify-between hover:opacity-95 hover:shadow-md hover:border-error/40 transition-all cursor-pointer group"
-        >
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-on-error-container">
-              Livros Atrasados
-            </h3>
-            <p className="font-serif text-4xl font-bold text-on-error-container leading-none">
-              {totalAtrasados || 0}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-on-error-container mt-4">
-            <AlertTriangle className="w-4 h-4 text-on-error-container" />
-            <span className="text-xs font-semibold">Exige cobrança ativa</span>
-          </div>
-        </Link>
-
-      </section>
+      {/* Grid de Estatísticas Bento Animados */}
+      <DashboardStats 
+        totalTitulos={totalTitulos || 0} 
+        totalAtivos={totalAtivos || 0} 
+        totalAtrasados={totalAtrasados || 0} 
+      />
 
       {/* Conteúdo Secundário Dividido */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -233,35 +160,13 @@ export default async function DashboardPage() {
                 </div>
               ))
             ) : (
-              // Exibição demonstrativa ilustrativa se não houver dados no banco ainda
-              ilustrativosEmprestimos.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-outline-variant/20 rounded hover:border-outline transition-all select-none opacity-90">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-14 bg-surface-container flex items-center justify-center rounded-sm font-bold text-primary border border-outline-variant/30">
-                      <BookOpen className="w-5 h-5 opacity-40" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-primary">{item.acervo.titulo}</h4>
-                      <p className="text-[11px] text-on-surface-variant leading-none mt-1">{item.acervo.autor}</p>
-                      <p className="text-[10px] text-on-surface-variant font-bold mt-2">Leitor: {item.usuarios.nome_completo}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right flex flex-col items-end gap-1.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        item.status === 'devolvido'
-                          ? 'bg-surface-container border border-outline-variant/30 text-on-surface-variant'
-                          : item.status === 'atrasado'
-                          ? 'bg-error-container border border-error/20 text-on-error-container'
-                          : 'bg-primary-container border border-primary/20 text-on-primary-container'
-                      }`}>
-                        {item.status === 'devolvido' ? 'Devolvido' : item.status === 'atrasado' ? 'Atrasado' : 'Em Andamento'}
-                      </span>
-                      <p className="text-[10px] text-on-surface-variant font-medium">Empréstimo: {formatDate(item.data_emprestimo)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
+              <div className="p-8 text-center bg-white border border-outline-variant/20 rounded-md shadow-sm">
+                <History className="w-10 h-10 mx-auto text-primary/40 mb-3 animate-pulse" />
+                <h4 className="text-sm font-bold text-primary">Nenhum empréstimo registrado</h4>
+                <p className="text-xs text-on-surface-variant mt-1.5 max-w-sm mx-auto font-normal leading-normal">
+                  As transações de empréstimo e devolução concluídas serão exibidas em tempo real nesta seção.
+                </p>
+              </div>
             )}
           </div>
 
@@ -289,26 +194,13 @@ export default async function DashboardPage() {
                   </div>
                 ))
               ) : (
-                // Fallback ilustrativo caso a base esteja vazia
-                [
-                  { titulo: 'A Arqueologia do Saber', autor: 'Michel Foucault', categoria: 'Filosofia' },
-                  { titulo: 'A Estrutura das Revoluções', autor: 'Thomas Kuhn', categoria: 'Ciência' },
-                  { titulo: 'Dom Quixote de la Mancha', autor: 'Miguel de Cervantes', categoria: 'Literatura' },
-                  { titulo: 'The Archetype of Wisdom', autor: 'Elena Rostova', categoria: 'História' },
-                ].map((book, idx) => (
-                  <div key={idx} className="bg-surface border border-outline-variant/40 p-4 rounded-lg flex flex-col justify-between gap-3 hover:shadow-sm transition-all">
-                    <div className="w-full aspect-[3/4] bg-surface-container flex items-center justify-center rounded border border-outline-variant/20 mb-2">
-                      <BookOpen className="w-8 h-8 opacity-25 text-primary" />
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-bold text-primary line-clamp-1 leading-tight">{book.titulo}</h5>
-                      <p className="text-[10px] text-on-surface-variant leading-none mt-1">{book.autor}</p>
-                    </div>
-                    <span className="text-[9px] uppercase font-bold tracking-widest text-on-surface-variant/80 bg-surface-container px-2 py-0.5 rounded w-max mt-1">
-                      {book.categoria}
-                    </span>
-                  </div>
-                ))
+                <div className="col-span-full py-10 text-center bg-white border border-outline-variant/20 rounded-lg shadow-sm">
+                  <BookOpen className="w-10 h-10 mx-auto text-primary/40 mb-3 animate-pulse" />
+                  <h4 className="text-sm font-bold text-primary">Nenhum livro cadastrado</h4>
+                  <p className="text-xs text-on-surface-variant mt-1.5 max-w-sm mx-auto font-normal leading-normal">
+                    Os últimos materiais adicionados ao acervo aparecerão em destaque aqui.
+                  </p>
+                </div>
               )}
             </div>
           </div>
