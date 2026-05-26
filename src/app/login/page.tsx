@@ -86,6 +86,40 @@ export default function LoginPage() {
   };
 
   /**
+   * Reenvia o código OTP para o mesmo e-mail sem exigir redigitação.
+   */
+  const handleResendOtp = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao reenviar o código.');
+      }
+
+      setOtpCode('');
+      setSuccessMsg('Um novo código de acesso foi enviado com sucesso para o seu e-mail!');
+      
+      if (result.devOtp) {
+        console.log(`[DEV] Seu novo OTP de testes é: ${result.devOtp}`);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Ocorreu um erro ao tentar reenviar o código.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Valida o código OTP e cria a sessão e perfil JIT se necessário.
    */
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -397,6 +431,16 @@ export default function LoginPage() {
                 <p className="mt-2 text-xs text-on-surface-variant italic text-center">
                   O código expira em 5 minutos. Verifique sua caixa de entrada e spam.
                 </p>
+                <div className="mt-2 text-center">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleResendOtp}
+                    className="text-xs font-semibold text-primary hover:underline cursor-pointer disabled:opacity-50 active:scale-95 transition-all duration-100"
+                  >
+                    Não recebeu o código? Reenviar Código
+                  </button>
+                </div>
               </div>
 
               <div>
