@@ -542,16 +542,21 @@ export default function LoginPage() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
                     <BookOpen className="h-4 w-4" />
                   </div>
-                  <input
+                  <select
                     id="jit-curso"
-                    type="text"
                     required
                     disabled={loading}
-                    placeholder="Engenharia Civil / TI"
                     value={cursoDepartamento}
                     onChange={(e) => setCursoDepartamento(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-outline-variant bg-surface rounded-md focus:outline-none focus:border-primary text-sm placeholder:text-on-surface-variant/50"
-                  />
+                    className="block w-full pl-10 pr-3 py-2 border border-outline-variant bg-surface rounded-md focus:outline-none focus:border-primary text-sm text-primary"
+                  >
+                    <option value="" disabled>Selecione seu Curso / Departamento</option>
+                    <option value="Análise e Desenvolvimento de Sistemas (ADS)">Análise e Desenvolvimento de Sistemas (ADS)</option>
+                    <option value="Engenharia de Software">Engenharia de Software</option>
+                    <option value="Engenharia Civil">Engenharia Civil</option>
+                    <option value="Direito">Direito</option>
+                    <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
+                  </select>
                 </div>
               </div>
 

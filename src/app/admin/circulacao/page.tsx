@@ -33,9 +33,10 @@ export default function CirculacaoPage() {
   const [emprestimos, setEmprestimos] = useState<Circulacao[]>([]);
   const [usuariosAtivos, setUsuariosAtivos] = useState<Usuario[]>([]);
   const [livrosDisponiveis, setLivrosDisponiveis] = useState<Material[]>([]);
+  const [reservas, setReservas] = useState<any[]>([]);
   
   // Estados de controle
-  const [activeTab, setActiveTab] = useState<'ativos' | 'historico' | 'novo'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'historico' | 'novo' | 'reservas'>('ativos');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,6 +59,10 @@ export default function CirculacaoPage() {
       if (status === 'ativo' || status === 'atrasado') {
         setFilterType(status);
       }
+      const tab = params.get('tab');
+      if (tab === 'reservas') {
+        setActiveTab('reservas');
+      }
     }
   }, []);
 
@@ -75,7 +80,10 @@ export default function CirculacaoPage() {
       // 1, 2 e 3. Dispara as três consultas ao Supabase em PARALELO usando Promise.all
       // Isso otimiza drasticamente a performance, reduzindo o tempo de carregamento
       // de sequencial (uma após a outra) para paralelo (todas juntas)
-      const [loansResult, usersResult, booksResult] = await Promise.all([
+      // 1, 2, 3 e 4. Dispara as consultas ao Supabase em PARALELO usando Promise.all
+      // Isso otimiza drasticamente a performance, reduzindo o tempo de carregamento
+      // de sequencial (uma após a outra) para paralelo (todas juntas)
+      const [loansResult, usersResult, booksResult, reservationsResult] = await Promise.all([
         supabase
           .from('circulacao')
           .select(`
@@ -95,16 +103,27 @@ export default function CirculacaoPage() {
           .from('acervo')
           .select('*')
           .gt('exemplares_disponiveis', 0)
-          .order('titulo', { ascending: true })
+          .order('titulo', { ascending: true }),
+
+        supabase
+          .from('reservas')
+          .select(`
+            *,
+            usuario:usuarios (nome_completo, matricula),
+            material:acervo (titulo, autor, exemplares_disponiveis, exemplares_total)
+          `)
+          .order('data_solicitacao', { ascending: false })
       ]);
 
       if (loansResult.error) throw loansResult.error;
       if (usersResult.error) throw usersResult.error;
       if (booksResult.error) throw booksResult.error;
+      if (reservationsResult.error) throw reservationsResult.error;
 
       const loansData = loansResult.data;
       const usersData = usersResult.data;
       const booksData = booksResult.data;
+      const reservationsData = reservationsResult.data;
 
       // Calcula as multas de atrasos ativas de forma dinâmica no carregamento se houver atraso físico real
       const processedLoans = (loansData || []).map((loan: any) => {
@@ -130,6 +149,7 @@ export default function CirculacaoPage() {
       setEmprestimos(processedLoans);
       setUsuariosAtivos(usersData || []);
       setLivrosDisponiveis(booksData || []);
+      setReservas(reservationsData || []);
 
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao carregar dados de circulação.');
@@ -298,6 +318,133 @@ export default function CirculacaoPage() {
     }
   };
 
+  /**
+   * Lógica de Aprovar Reserva:
+   * 1. Altera status da reserva para 'aprovada' e define data limite.
+   * 2. Decrementa o exemplar disponível no acervo.
+   */
+  const handleAprovarReserva = async (res: any) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const { data: material, error: materialError } = await supabase
+        .from('acervo')
+        .select('exemplares_disponiveis')
+        .eq('id', res.material_id)
+        .single();
+
+      if (materialError || !material) throw new Error('Livro não encontrado no acervo.');
+      if (material.exemplares_disponiveis <= 0) {
+        throw new Error('Não há exemplares disponíveis deste livro no momento.');
+      }
+
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() + 3);
+
+      const { error: updateError } = await supabase
+        .from('acervo')
+        .update({ exemplares_disponiveis: material.exemplares_disponiveis - 1 })
+        .eq('id', res.material_id);
+
+      if (updateError) throw updateError;
+
+      const { error: reserveError } = await supabase
+        .from('reservas')
+        .update({
+          status: 'aprovada',
+          data_retirada_limite: limitDate.toISOString()
+        })
+        .eq('id', res.id);
+
+      if (reserveError) {
+        await supabase
+          .from('acervo')
+          .update({ exemplares_disponiveis: material.exemplares_disponiveis })
+          .eq('id', res.material_id);
+        throw reserveError;
+      }
+
+      setSuccessMsg(`Reserva de "${res.material?.titulo}" aprovada com sucesso! O leitor tem até 3 dias para retirar.`);
+      loadData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erro ao aprovar reserva.');
+    }
+  };
+
+  /**
+   * Lógica de Reprovar Reserva:
+   * Solicita justificativa e altera status para 'rejeitada'.
+   */
+  const handleReprovarReserva = async (res: any) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    
+    const justificativa = window.prompt('Digite o motivo da rejeição da reserva:');
+    if (justificativa === null) return;
+    if (!justificativa.trim()) {
+      setErrorMsg('É necessário fornecer uma justificativa para reprovar a reserva.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .update({
+          status: 'rejeitada',
+          justificativa: justificativa.trim()
+        })
+        .eq('id', res.id);
+
+      if (error) throw error;
+
+      setSuccessMsg(`Reserva de "${res.material?.titulo}" rejeitada.`);
+      loadData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erro ao reprovar reserva.');
+    }
+  };
+
+  /**
+   * Lógica de Confirmar Retirada:
+   * Cria empréstimo ativo no circulacao e finaliza a reserva.
+   */
+  const handleConfirmarRetiradaReserva = async (res: any) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const dataPrevista = new Date();
+      dataPrevista.setDate(dataPrevista.getDate() + 14);
+
+      const { error: insertError } = await supabase
+        .from('circulacao')
+        .insert([
+          {
+            usuario_id: res.usuario_id,
+            material_id: res.material_id,
+            data_devolucao_prevista: dataPrevista.toISOString(),
+            status: 'ativo'
+          }
+        ]);
+
+      if (insertError) throw insertError;
+
+      const { error: updateError } = await supabase
+        .from('reservas')
+        .update({
+          status: 'finalizada'
+        })
+        .eq('id', res.id);
+
+      if (updateError) throw updateError;
+
+      setSuccessMsg(`Retirada física confirmada! Empréstimo ativo gerado com devolução prevista para ${dataPrevista.toLocaleDateString('pt-BR')}.`);
+      setActiveTab('ativos');
+      loadData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erro ao confirmar retirada.');
+    }
+  };
+
   // Separação de abas para listagem com filtro dinâmico
   const todosAtivos = emprestimos.filter((e) => e.status !== 'devolvido');
   const ativos = todosAtivos.filter((e) => {
@@ -368,6 +515,16 @@ export default function CirculacaoPage() {
           }`}
         >
           Novo Empréstimo
+        </button>
+        <button
+          onClick={() => setActiveTab('reservas')}
+          className={`flex-1 py-3 text-sm font-semibold text-center transition-colors border-b-2 outline-none cursor-pointer ${
+            activeTab === 'reservas'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-on-surface-variant hover:text-primary'
+          }`}
+        >
+          Reservas Online (<AnimatedCounter value={reservas.filter(r => r.status === 'pendente' || r.status === 'aprovada').length} />)
         </button>
       </nav>
 
@@ -637,6 +794,139 @@ export default function CirculacaoPage() {
             </div>
 
           </form>
+        </div>
+      )}
+
+      {/* ABA 4: RESERVAS ONLINE */}
+      {activeTab === 'reservas' && (
+        <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead className="bg-surface-container-low border-b border-outline-variant">
+                <tr>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor / Matrícula</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Livro / Estoque</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Solicitado em</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Status / Detalhes</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações Operacionais</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/30">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    </td>
+                  </tr>
+                ) : reservas.length > 0 ? (
+                  reservas.map((res) => {
+                    const isPending = res.status === 'pendente';
+                    const isApproved = res.status === 'aprovada';
+                    const isRejected = res.status === 'rejeitada';
+                    const isFinalized = res.status === 'finalizada';
+
+                    return (
+                      <tr key={res.id} className="hover:bg-surface-container/10 transition-colors">
+                        {/* Leitor */}
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-primary">{res.usuario?.nome_completo}</p>
+                          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
+                            Matrícula: {res.usuario?.matricula}
+                          </p>
+                        </td>
+
+                        {/* Livro */}
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-primary">{res.material?.titulo}</p>
+                          <p className="text-[10px] text-on-surface-variant">
+                            Estoque: {res.material?.exemplares_disponiveis} / {res.material?.exemplares_total} exemplares
+                          </p>
+                        </td>
+
+                        {/* Data Solicitação */}
+                        <td className="px-6 py-4 text-on-surface-variant font-semibold">
+                          {formatDate(res.data_solicitacao)}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                : isApproved
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : isRejected
+                                ? 'bg-error-container text-on-error-container border border-error/20'
+                                : 'bg-surface-container border border-outline text-on-surface-variant'
+                            }`}>
+                              {isPending ? 'Pendente' : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Concluída'}
+                            </span>
+                            {isApproved && res.data_retirada_limite && (
+                              <p className="text-[9px] text-emerald-700 font-bold">
+                                Retirar até: {formatDate(res.data_retirada_limite)}
+                              </p>
+                            )}
+                            {isRejected && res.justificativa && (
+                              <p className="text-[9px] text-on-error-container font-semibold italic max-w-[200px] leading-tight">
+                                Motivo: "{res.justificativa}"
+                              </p>
+                            )}
+                            {isFinalized && (
+                              <p className="text-[9px] text-on-surface-variant/60">
+                                Retirado em empréstimo físico.
+                              </p>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Ações */}
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {isPending && (
+                              <>
+                                <button
+                                  onClick={() => handleAprovarReserva(res)}
+                                  className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+                                >
+                                  Aprovar
+                                </button>
+                                <button
+                                  onClick={() => handleReprovarReserva(res)}
+                                  className="px-3 py-1.5 border border-outline text-secondary hover:bg-error-container/20 text-[11px] font-bold rounded active:scale-[0.98] transition-all cursor-pointer"
+                                >
+                                  Reprovar
+                                </button>
+                              </>
+                            )}
+
+                            {isApproved && (
+                              <button
+                                onClick={() => handleConfirmarRetiradaReserva(res)}
+                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+                              >
+                                Confirmar Retirada
+                              </button>
+                            )}
+
+                            {!isPending && !isApproved && (
+                              <span className="text-xs text-on-surface-variant/40 italic">Sem ações pendentes</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant italic font-semibold font-sans">
+                      Nenhuma solicitação de reserva encontrada no banco de dados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -37,6 +37,7 @@ export default function PortalPage() {
   const [profile, setProfile] = useState<Usuario | null>(null);
   const [emprestimos, setEmprestimos] = useState<any[]>([]);
   const [acervo, setAcervo] = useState<Material[]>([]);
+  const [reservas, setReservas] = useState<any[]>([]);
   
   // Estados de controle de interface
   const [loading, setLoading] = useState(true);
@@ -44,7 +45,7 @@ export default function PortalPage() {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedCourse, setSelectedCourse] = useState('Todos');
   const [selectedMaterialDetails, setSelectedMaterialDetails] = useState<Material | null>(null);
-  const [activeTab, setActiveTab] = useState<'catalogo' | 'meus-livros'>('catalogo');
+  const [activeTab, setActiveTab] = useState<'catalogo' | 'meus-livros' | 'meus-reservas'>('catalogo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Categorias de livros para filtro rápido
@@ -113,6 +114,19 @@ export default function PortalPage() {
       if (loansError) throw loansError;
       setEmprestimos(loansData || []);
 
+      // 5. Busca reservas do usuário
+      const { data: reservationsData, error: reservationsError } = await supabase
+        .from('reservas')
+        .select(`
+          *,
+          material:acervo (titulo, autor, capa_url, exemplares_disponiveis, exemplares_total)
+        `)
+        .eq('usuario_id', user.id)
+        .order('data_solicitacao', { ascending: false });
+
+      if (reservationsError) throw reservationsError;
+      setReservas(reservationsData || []);
+
     } catch (err: any) {
       console.error('Erro ao carregar dados do portal:', err);
       setErrorMsg(err.message || 'Falha ao carregar informações da biblioteca.');
@@ -135,6 +149,40 @@ export default function PortalPage() {
       router.refresh();
     } catch (err) {
       console.error('Erro ao efetuar logout:', err);
+    }
+  };
+
+  // Verifica o status de reserva ativa do leitor para um determinado livro
+  const getBookReservationStatus = (bookId: string) => {
+    const reservation = reservas.find(r => r.material_id === bookId && r.status !== 'finalizada' && r.status !== 'rejeitada');
+    return reservation ? reservation.status : null;
+  };
+
+  // Solicita uma nova reserva de livro
+  const handleCreateReservation = async (bookId: string) => {
+    if (!profile) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .insert([
+          {
+            usuario_id: profile.id,
+            material_id: bookId,
+            status: 'pendente'
+          }
+        ]);
+
+      if (error) throw error;
+      
+      // Recarrega os dados para atualizar instantaneamente na tela
+      await loadPortalData();
+    } catch (err: any) {
+      console.error('Erro ao solicitar reserva:', err);
+      setErrorMsg(err.message || 'Falha ao solicitar reserva.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -273,6 +321,16 @@ export default function PortalPage() {
             }`}
           >
             Meus Empréstimos ({emprestimos.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('meus-reservas')}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'meus-reservas'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-on-surface-variant hover:text-primary'
+            }`}
+          >
+            Minhas Reservas ({reservas.length})
           </button>
         </div>
 
@@ -413,6 +471,45 @@ export default function PortalPage() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Botão de Reserva Online */}
+                        <div className="mt-3 pt-2.5 border-t border-outline-variant/30 flex justify-end">
+                          {(() => {
+                            const resStatus = getBookReservationStatus(book.id);
+                            if (resStatus === 'pendente') {
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 shadow-sm">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                  <span>Reserva Pendente</span>
+                                </span>
+                              );
+                            }
+                            if (resStatus === 'aprovada') {
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm">
+                                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Aprovada - Retirar</span>
+                                </span>
+                              );
+                            }
+                            if (!isAvailable) {
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-surface-container border border-outline-variant text-on-surface-variant/40 text-[10px] font-bold px-2.5 py-1 rounded-md cursor-not-allowed">
+                                  <span>Esgotado</span>
+                                </span>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => handleCreateReservation(book.id)}
+                                className="inline-flex items-center gap-1.5 bg-primary text-on-primary hover:bg-primary/90 active:scale-95 text-[10px] font-bold px-3 py-1.5 rounded-md transition-all cursor-pointer shadow-sm hover:shadow"
+                              >
+                                <BookMarked className="w-3.5 h-3.5" />
+                                <span>Reservar Livro</span>
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                   );
@@ -534,6 +631,119 @@ export default function PortalPage() {
                 <p className="text-sm font-semibold text-primary">Nenhum empréstimo registrado</p>
                 <p className="text-xs text-on-surface-variant mt-1">
                   Quando você realizar empréstimos de livros com a equipe da biblioteca, eles aparecerão aqui.
+                </p>
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* ABA 3: MINHAS RESERVAS */}
+        {activeTab === 'meus-reservas' && (
+          <div className="space-y-6">
+            
+            {reservas.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reservas.map((res) => {
+                  const isPending = res.status === 'pendente';
+                  const isApproved = res.status === 'aprovada';
+                  const isRejected = res.status === 'rejeitada';
+                  const isFinalized = res.status === 'finalizada';
+
+                  return (
+                    <div 
+                      key={res.id} 
+                      className={`bg-white border rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all ${
+                        isPending 
+                          ? 'border-amber-200 bg-gradient-to-b from-white to-amber-50/20' 
+                          : isApproved
+                          ? 'border-emerald-200 bg-gradient-to-b from-white to-emerald-50/20'
+                          : isRejected
+                          ? 'border-error/20 bg-gradient-to-b from-white to-error/5'
+                          : 'border-outline-variant/60 bg-surface-container-lowest'
+                      }`}
+                    >
+                      {/* Cabeçalho do Card de Reserva */}
+                      <div className="flex justify-between items-start border-b border-outline-variant/30 pb-3">
+                        <div className="flex gap-2.5 items-center">
+                          <BookOpen className="w-5 h-5 text-primary shrink-0" />
+                          <div>
+                            <h3 className="text-sm font-bold text-primary line-clamp-1" title={res.material?.titulo}>
+                              {res.material?.titulo}
+                            </h3>
+                            <p className="text-[10px] text-on-surface-variant font-semibold">
+                              {res.material?.autor}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Status Tag */}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          isPending
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : isApproved
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 animate-pulse'
+                            : isRejected
+                            ? 'bg-error-container text-on-error-container border border-error/20'
+                            : 'bg-surface-container border border-outline text-on-surface-variant'
+                        }`}>
+                          {isPending ? 'Pendente' : isApproved ? 'Aprovada' : isRejected ? 'Rejeitada' : 'Retirado (Finalizado)'}
+                        </span>
+                      </div>
+
+                      {/* Corpo do Card: Datas de Controle e Justificativa */}
+                      <div className="flex-1 flex flex-col justify-between gap-3 text-xs font-semibold text-on-surface-variant">
+                        <div className="space-y-1">
+                          <span className="flex items-center gap-1.5 text-[10px] text-on-surface-variant/60 uppercase tracking-wider font-bold">
+                            <Calendar className="w-3.5 h-3.5" />
+                            Data da Solicitação
+                          </span>
+                          <span>{formatDate(res.data_solicitacao)}</span>
+                        </div>
+
+                        {isApproved && res.data_retirada_limite && (
+                          <div className="space-y-1 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/60">
+                            <span className="flex items-center gap-1.5 text-[10px] text-emerald-700 uppercase tracking-wider font-bold">
+                              <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                              Retirar até
+                            </span>
+                            <span className="text-emerald-800 font-bold text-sm">
+                              {formatDate(res.data_retirada_limite)}
+                            </span>
+                            <p className="text-[9px] text-emerald-600 font-normal leading-tight mt-0.5">
+                              Dirija-se ao balcão de atendimento para retirar seu exemplar.
+                            </p>
+                          </div>
+                        )}
+
+                        {isRejected && res.justificativa && (
+                          <div className="space-y-1 bg-error-container/40 p-2.5 rounded-lg border border-error/10">
+                            <span className="flex items-center gap-1.5 text-[10px] text-on-error-container uppercase tracking-wider font-bold">
+                              <AlertTriangle className="w-3.5 h-3.5 text-error" />
+                              Motivo da Rejeição
+                            </span>
+                            <p className="text-[11px] text-on-error-container/85 font-normal leading-normal whitespace-pre-line italic">
+                              "{res.justificativa}"
+                            </p>
+                          </div>
+                        )}
+
+                        {isFinalized && (
+                          <p className="text-[10px] text-on-surface-variant/50 font-normal italic">
+                            Esta reserva foi convertida em um empréstimo ativo e o exemplar já foi retirado.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-white border border-outline-variant rounded-xl p-12 text-center shadow-sm">
+                <BookMarked className="w-12 h-12 text-on-surface-variant/30 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-primary">Nenhuma reserva registrada</p>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Você pode pesquisar livros no catálogo e realizar solicitações de reserva online para garantir sua leitura.
                 </p>
               </div>
             )}

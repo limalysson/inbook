@@ -759,13 +759,19 @@ function UsuariosPageContent() {
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Curso / Departamento</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Engenharia Civil"
+                <select
+                  required
                   value={newDepartment}
                   onChange={(e) => setNewDepartment(e.target.value)}
-                  className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
-                />
+                  className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-primary"
+                >
+                  <option value="" disabled>Selecione seu Curso / Departamento</option>
+                  <option value="Análise e Desenvolvimento de Sistemas (ADS)">Análise e Desenvolvimento de Sistemas (ADS)</option>
+                  <option value="Engenharia de Software">Engenharia de Software</option>
+                  <option value="Engenharia Civil">Engenharia Civil</option>
+                  <option value="Direito">Direito</option>
+                  <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
