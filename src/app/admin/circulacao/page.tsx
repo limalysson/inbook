@@ -562,86 +562,119 @@ export default function CirculacaoPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {loading ? (
-            <div className="col-span-2 text-center py-12 text-on-surface-variant">
+            <div className="text-center py-12 text-on-surface-variant bg-white border border-outline-variant rounded-xl shadow-sm">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-              <p className="mt-2 font-semibold">Carregando circulação ativa...</p>
+              <p className="mt-2 font-semibold text-sm">Carregando circulação ativa...</p>
             </div>
           ) : ativos.length > 0 ? (
-            ativos.map((loan) => {
-              const isOverdue = new Date(loan.data_devolucao_prevista) < new Date();
-              
-              return (
-                <div key={loan.id} className="bg-white border border-outline-variant rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all">
-                  
-                  {/* Cabeçalho do Card */}
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-primary">{loan.usuario?.nome_completo}</h3>
-                        <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
-                          Matrícula: {loan.usuario?.matricula}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Pip Status */}
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      isOverdue 
-                        ? 'bg-error-container border border-error/20 text-on-error-container'
-                        : 'bg-surface-container-high border border-primary/20 text-primary'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOverdue ? 'bg-secondary' : 'bg-primary'}`} />
-                      {isOverdue ? 'Atrasado' : 'No Prazo'}
-                    </span>
-                  </div>
-
-                  {/* Informações do Livro */}
-                  <div className="border-t border-outline-variant/30 pt-3 flex justify-between items-start gap-3">
-                    <div className="flex items-start gap-3">
-                      <BookOpen className="w-5 h-5 text-on-surface-variant/60 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-primary">{loan.material?.titulo}</h4>
-                        <p className="text-[10px] text-on-surface-variant mt-0.5">
-                          Entrega prevista: {formatDate(loan.data_devolucao_prevista)} • Renovado ({loan.renovacoes_contagem}/3)
-                        </p>
-                      </div>
-                    </div>
-
-                    {isOverdue && loan.multa_acumulada > 0 && (
-                      <div className="text-right shrink-0">
-                        <span className="text-[9px] text-secondary font-bold block uppercase tracking-wider">Multa</span>
-                        <span className="text-xs font-bold text-secondary">R$ {Number(loan.multa_acumulada).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Ações Rápidas */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => handleReturnBook(loan)}
-                      className="flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm text-center"
-                    >
-                      Registrar Devolução
-                    </button>
-                    <button
-                      onClick={() => handleRenewBook(loan)}
-                      disabled={loan.renovacoes_contagem >= 3}
-                      className="flex-1 py-2 border border-outline text-primary text-xs font-bold rounded hover:bg-surface-container active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
-                    >
-                      Renovar Prazo
-                    </button>
-                  </div>
-
-                </div>
-              );
-            })
+            <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-surface-container-low border-b border-outline-variant">
+                    <tr>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Material</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Data Empréstimo</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Prazo Limite / Status</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Renovações</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/30">
+                    {ativos.map((loan) => {
+                      const isOverdue = new Date(loan.data_devolucao_prevista) < new Date();
+                      
+                      return (
+                        <tr key={loan.id} className="hover:bg-surface-container/10 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shrink-0 select-none border border-outline-variant/50">
+                                {loan.usuario?.nome_completo ? loan.usuario.nome_completo.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'LE'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-primary">{loan.usuario?.nome_completo}</p>
+                                <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
+                                  Matrícula: {loan.usuario?.matricula}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-primary line-clamp-1" title={loan.material?.titulo}>
+                              {loan.material?.titulo}
+                            </p>
+                            <p className="text-[10px] text-on-surface-variant font-semibold">
+                              {loan.material?.autor}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4 text-on-surface-variant font-semibold">
+                            {formatDate(loan.data_emprestimo)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <p className={`font-semibold text-xs ${isOverdue ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
+                                {formatDate(loan.data_devolucao_prevista)}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                  isOverdue 
+                                    ? 'bg-error-container border border-error/20 text-on-error-container'
+                                    : 'bg-primary/5 border border-primary/20 text-primary'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isOverdue ? 'bg-secondary animate-pulse' : 'bg-primary'}`} />
+                                  {isOverdue ? 'Atrasado' : 'No Prazo'}
+                                </span>
+                                {isOverdue && loan.multa_acumulada > 0 && (
+                                  <span className="text-[10px] font-bold text-secondary flex items-center gap-0.5" title="Multa acumulada por atraso">
+                                    <DollarSign className="w-3.5 h-3.5 text-secondary" />
+                                    <span>{Number(loan.multa_acumulada).toFixed(2)}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-0.5 rounded-md ${
+                              loan.renovacoes_contagem >= 3 
+                                ? 'bg-error-container/30 text-on-error-container/80'
+                                : loan.renovacoes_contagem > 0
+                                ? 'bg-primary/5 text-primary font-bold'
+                                : 'bg-surface-container text-on-surface-variant/75 font-semibold'
+                            }`}>
+                              {loan.renovacoes_contagem} / 3
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleReturnBook(loan)}
+                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm inline-flex items-center gap-1 shrink-0"
+                                title="Registrar Devolução Física"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 animate-pulse" />
+                                <span>Devolver</span>
+                              </button>
+                              <button
+                                onClick={() => handleRenewBook(loan)}
+                                disabled={loan.renovacoes_contagem >= 3}
+                                className="px-3 py-1.5 border border-outline text-primary text-[11px] font-bold rounded hover:bg-surface-container active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer inline-flex items-center gap-1 shrink-0 bg-white"
+                                title="Estender Prazo em +7 dias"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                <span>Renovar</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
-            <div className="col-span-2 py-12 text-center bg-white border border-outline-variant rounded-xl p-8 shadow-sm">
+            <div className="py-12 text-center bg-white border border-outline-variant rounded-xl p-8 shadow-sm">
               <History className="w-12 h-12 mx-auto text-primary/40 mb-3 animate-pulse" />
               <h3 className="text-base font-bold text-primary">Nenhum empréstimo ativo registrado</h3>
               <p className="text-xs text-on-surface-variant mt-2 max-w-sm mx-auto font-normal leading-normal">
@@ -650,8 +683,7 @@ export default function CirculacaoPage() {
               </p>
             </div>
           )}
-        </div>
-        </div>
+        </div>        
       )}
 
       {/* ABA 2: HISTÓRICO DE TRANSAÇÕES */}
