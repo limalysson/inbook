@@ -251,8 +251,7 @@ export default function RelatoriosPage() {
         {/* Cabeçalho da Página */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/30 pb-5">
           <div>
-            <div className="flex items-center gap-2 text-primary mb-1">
-              <BarChart3 className="w-6 h-6 shrink-0" />
+            <div className="flex items-center gap-2 text-primary mb-1">              
               <h1 className="text-2xl font-serif font-bold tracking-tight">Relatórios & Auditoria</h1>
             </div>
             <p className="text-sm text-on-surface-variant">

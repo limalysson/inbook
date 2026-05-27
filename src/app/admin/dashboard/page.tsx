@@ -88,7 +88,7 @@ export default async function DashboardPage() {
         <div className="flex flex-wrap gap-3 select-none">
           <Link
             href="/admin/acervo?add=true"
-            className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded text-xs font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm shrink-0"
+            className="flex items-center gap-2 border border-outline bg-white text-primary px-4 py-2 rounded text-xs font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm shrink-0"
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>Novo Livro</span>

@@ -17,7 +17,12 @@ import {
   Loader2,
   DollarSign,
   Plus,
-  X
+  X,
+  FileText,
+  AlertCircle,
+  ToggleLeft,
+  ToggleRight,
+  Edit
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import AnimatedCounter from '@/components/AnimatedCounter';
@@ -54,6 +59,11 @@ export default function CirculacaoPage() {
 
   // Filtro de status de empréstimos ativos (todos | ativo | atrasado) suportando query params
   const [filterType, setFilterType] = useState<'todos' | 'ativo' | 'atrasado'>('todos');
+
+  // Estados de visualização de detalhes (Fichas Estáticas)
+  const [selectedUsuarioForDetails, setSelectedUsuarioForDetails] = useState<Usuario | null>(null);
+  const [selectedMaterialForDetails, setSelectedMaterialForDetails] = useState<Material | null>(null);
+  const [updatingReaderId, setUpdatingReaderId] = useState<string | null>(null);
 
   // Calcula a posição da fila de espera no painel administrativo
   const getAdminQueuePosition = (bookId: string, resId: string) => {
@@ -94,8 +104,8 @@ export default function CirculacaoPage() {
           .from('circulacao')
           .select(`
             *,
-            usuario:usuarios (nome_completo, matricula),
-            material:acervo (titulo, autor)
+            usuario:usuarios (*),
+            material:acervo (*)
           `)
           .order('data_emprestimo', { ascending: false }),
         
@@ -115,8 +125,8 @@ export default function CirculacaoPage() {
           .from('reservas')
           .select(`
             *,
-            usuario:usuarios (nome_completo, matricula),
-            material:acervo (titulo, autor, exemplares_disponiveis, exemplares_total)
+            usuario:usuarios (*),
+            material:acervo (*)
           `)
           .order('data_solicitacao', { ascending: false }),
 
@@ -465,6 +475,45 @@ export default function CirculacaoPage() {
     }
   };
 
+  /**
+   * Altera dinamicamente o status do leitor direto no Supabase
+   * e atualiza o estado local e global correspondente.
+   */
+  const handleToggleReaderStatus = async (id: string, currentStatus: boolean) => {
+    setUpdatingReaderId(id);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const { error } = await supabase
+        .from('usuarios')
+        .update({ status: !currentStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSuccessMsg(`Status do leitor atualizado com sucesso!`);
+      
+      // Atualiza o estado local do modal de detalhes se estiver aberto
+      if (selectedUsuarioForDetails && selectedUsuarioForDetails.id === id) {
+        setSelectedUsuarioForDetails({
+          ...selectedUsuarioForDetails,
+          status: !currentStatus
+        });
+      }
+
+      // Recarrega todos os dados
+      loadData();
+      
+      setTimeout(() => {
+        setSuccessMsg(null);
+      }, 4000);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erro ao atualizar o status do leitor.');
+    } finally {
+      setUpdatingReaderId(null);
+    }
+  };
+
   // Separação de abas para listagem com filtro dinâmico
   const todosAtivos = emprestimos.filter((e) => e.status !== 'devolvido');
   const ativos = todosAtivos.filter((e) => {
@@ -600,7 +649,13 @@ export default function CirculacaoPage() {
                                 {loan.usuario?.nome_completo ? loan.usuario.nome_completo.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'LE'}
                               </div>
                               <div>
-                                <p className="font-bold text-primary">{loan.usuario?.nome_completo}</p>
+                                <p 
+                                  onClick={() => loan.usuario && setSelectedUsuarioForDetails(loan.usuario)}
+                                  className="font-bold text-primary cursor-pointer hover:underline select-none"
+                                  title="Clique para ver ficha de cadastro do leitor"
+                                >
+                                  {loan.usuario?.nome_completo}
+                                </p>
                                 <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
                                   Matrícula: {loan.usuario?.matricula}
                                 </p>
@@ -608,7 +663,11 @@ export default function CirculacaoPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="font-bold text-primary line-clamp-1" title={loan.material?.titulo}>
+                            <p 
+                              onClick={() => loan.material && setSelectedMaterialForDetails(loan.material)}
+                              className="font-bold text-primary hover:underline cursor-pointer select-none line-clamp-1" 
+                              title="Clique para ver ficha técnica do livro"
+                            >
                               {loan.material?.titulo}
                             </p>
                             <p className="text-[10px] text-on-surface-variant font-semibold">
@@ -634,7 +693,7 @@ export default function CirculacaoPage() {
                                 </span>
                                 {isOverdue && loan.multa_acumulada > 0 && (
                                   <span className="text-[10px] font-bold text-secondary flex items-center gap-0.5" title="Multa acumulada por atraso">
-                                    <DollarSign className="w-3.5 h-3.5 text-secondary" />
+                                    <span className="text-[9px] font-extrabold uppercase shrink-0">R$</span>
                                     <span>{Number(loan.multa_acumulada).toFixed(2)}</span>
                                   </span>
                                 )}
@@ -718,13 +777,25 @@ export default function CirculacaoPage() {
                   historico.map((loan) => (
                     <tr key={loan.id} className="hover:bg-surface-container/10 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="font-bold text-primary">{loan.usuario?.nome_completo}</p>
+                        <p 
+                          onClick={() => loan.usuario && setSelectedUsuarioForDetails(loan.usuario)}
+                          className="font-bold text-primary cursor-pointer hover:underline select-none"
+                          title="Clique para ver ficha de cadastro do leitor"
+                        >
+                          {loan.usuario?.nome_completo}
+                        </p>
                         <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
                           Matrícula: {loan.usuario?.matricula}
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-primary">{loan.material?.titulo}</p>
+                        <p 
+                          onClick={() => loan.material && setSelectedMaterialForDetails(loan.material)}
+                          className="font-bold text-primary hover:underline cursor-pointer select-none line-clamp-1"
+                          title="Clique para ver ficha técnica do livro"
+                        >
+                          {loan.material?.titulo}
+                        </p>
                         <p className="text-[10px] text-on-surface-variant">{loan.material?.autor}</p>
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant font-semibold hidden sm:table-cell">
@@ -903,7 +974,13 @@ export default function CirculacaoPage() {
                       <tr key={res.id} className="hover:bg-surface-container/10 transition-colors">
                         {/* Leitor */}
                         <td className="px-6 py-4">
-                          <p className="font-bold text-primary">{res.usuario?.nome_completo}</p>
+                          <p 
+                            onClick={() => res.usuario && setSelectedUsuarioForDetails(res.usuario)}
+                            className="font-bold text-primary cursor-pointer hover:underline select-none"
+                            title="Clique para ver ficha de cadastro do leitor"
+                          >
+                            {res.usuario?.nome_completo}
+                          </p>
                           <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
                             Matrícula: {res.usuario?.matricula}
                           </p>
@@ -911,7 +988,13 @@ export default function CirculacaoPage() {
 
                         {/* Livro */}
                         <td className="px-6 py-4">
-                          <p className="font-bold text-primary">{res.material?.titulo}</p>
+                          <p 
+                            onClick={() => res.material && setSelectedMaterialForDetails(res.material)}
+                            className="font-bold text-primary hover:underline cursor-pointer select-none line-clamp-1"
+                            title="Clique para ver ficha técnica do livro"
+                          >
+                            {res.material?.titulo}
+                          </p>
                           <p className="text-[10px] text-on-surface-variant">
                             Estoque: {res.material?.exemplares_disponiveis} / {res.material?.exemplares_total} exemplares
                           </p>
@@ -1002,6 +1085,316 @@ export default function CirculacaoPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALHES: Ficha de Cadastro do Leitor (Estática) */}
+      {selectedUsuarioForDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-outline-variant w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col">
+            <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
+              <h3 className="font-serif text-lg font-bold text-primary flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                <span>Ficha de Cadastro do Leitor</span>
+              </h3>
+              <button 
+                onClick={() => setSelectedUsuarioForDetails(null)}
+                className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer border-0 bg-transparent shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {errorMsg && (
+                <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                  <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Coluna Esquerda: Avatar e Tipo de Vínculo */}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-24 h-24 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-3xl shadow-md border border-outline-variant/30 select-none">
+                    {selectedUsuarioForDetails.nome_completo ? selectedUsuarioForDetails.nome_completo.substring(0, 2).toUpperCase() : 'LE'}
+                  </div>
+                  <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold uppercase tracking-wider">
+                    {selectedUsuarioForDetails.tipo}
+                  </span>
+                </div>
+
+                {/* Coluna Direita (2/3): Dados em Mono */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-5 shadow-inner font-mono text-xs text-on-surface relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full translate-x-8 -translate-y-8" />
+                    
+                    <div className="space-y-3 relative z-10">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-primary font-bold block mb-0.5">Nome Completo</span>
+                        <span className="text-sm font-bold font-serif text-primary block leading-snug">{selectedUsuarioForDetails.nome_completo}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Matrícula / ID</span>
+                          <span className="font-semibold">{selectedUsuarioForDetails.matricula}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Telefone</span>
+                          <span className="font-semibold">{selectedUsuarioForDetails.telefone || 'Sem contato cadastrado'}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Curso / Departamento</span>
+                        <span className="font-semibold text-secondary">{selectedUsuarioForDetails.curso_departamento || 'Sem curso/departamento definido'}</span>
+                      </div>
+
+                      <div className="pt-1">
+                        <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">E-mail Institucional</span>
+                        <span className="font-semibold text-on-surface select-all">{selectedUsuarioForDetails.email}</span>
+                      </div>
+
+                      <hr className="border-outline-variant/30 my-2" />
+
+                      <div className="flex items-center justify-between pt-1">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Status do Leitor</span>
+                          <span className="text-[10px] text-on-surface-variant">Inativos são bloqueados de realizar empréstimos.</span>
+                        </div>
+                        <div>
+                          {selectedUsuarioForDetails.status ? (
+                            <span className="inline-flex items-center gap-1.5 bg-surface-container-high border border-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                              Conta Ativa
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 bg-error-container border border-error/20 text-on-error-container px-3 py-1 rounded-full text-xs font-bold">
+                              <span className="w-2 h-2 bg-secondary rounded-full" />
+                              Conta Inativa
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <footer className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-outline-variant/30 mt-6 select-none font-sans">
+                <button
+                  type="button"
+                  onClick={() => setSelectedUsuarioForDetails(null)}
+                  className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer text-center bg-white"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  disabled={updatingReaderId === selectedUsuarioForDetails.id}
+                  onClick={() => handleToggleReaderStatus(selectedUsuarioForDetails.id, selectedUsuarioForDetails.status)}
+                  className="flex-1 py-3 border border-secondary/30 text-secondary text-sm font-semibold rounded hover:bg-secondary/5 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 bg-white"
+                >
+                  {updatingReaderId === selectedUsuarioForDetails.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-secondary" />
+                  ) : selectedUsuarioForDetails.status ? (
+                    <span>Bloquear Acesso</span>
+                  ) : (
+                    <span>Habilitar Acesso</span>
+                  )}
+                </button>
+                <a
+                  href={`/admin/usuarios?search=${selectedUsuarioForDetails.matricula}`}
+                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Ver no Diretório</span>
+                </a>
+              </footer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALHES: Ficha Técnica do Livro (Estática) */}
+      {selectedMaterialForDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-outline-variant w-full max-w-2xl rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
+              <h3 className="font-serif text-lg font-bold text-primary flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <span>Ficha Técnica do Livro / Material</span>
+              </h3>
+              <button 
+                onClick={() => setSelectedMaterialForDetails(null)}
+                className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer border-0 bg-transparent shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {errorMsg && (
+                <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                  <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Coluna Esquerda: Capa e Acesso a PDF */}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-full max-w-[160px] aspect-[2/3] bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant/30 shadow-md flex items-center justify-center text-primary relative group">
+                    {selectedMaterialForDetails.capa_url ? (
+                      <img src={selectedMaterialForDetails.capa_url} alt="Capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <BookOpen className="w-12 h-12 opacity-35" />
+                    )}
+                  </div>
+
+                  {selectedMaterialForDetails.pdf_url ? (
+                    <a
+                      href={selectedMaterialForDetails.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full max-w-[160px] flex items-center justify-center gap-2 bg-primary/10 text-primary text-xs font-bold py-2 px-3 rounded hover:bg-primary/20 transition-all text-center border border-primary/20 shadow-sm cursor-pointer font-sans"
+                    >
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span>Visualizar PDF</span>
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-on-surface-variant/60 italic font-medium">Sem anexo digital (PDF)</span>
+                  )}
+                </div>
+
+                {/* Coluna Direita (2/3): Ficha Catalográfica / Registro Técnico */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-5 shadow-inner font-mono text-xs text-on-surface relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full translate-x-8 -translate-y-8" />
+                    
+                    <div className="space-y-3 relative z-10">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-primary font-bold block mb-0.5">Título Principal</span>
+                        <span className="text-sm font-bold font-serif text-primary block leading-snug">{selectedMaterialForDetails.titulo}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Autor</span>
+                          <span className="font-semibold">{selectedMaterialForDetails.autor || 'N/C'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">ISBN / Código</span>
+                          <span className="font-semibold">{selectedMaterialForDetails.isbn || 'N/C'}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Categoria</span>
+                          <span className="font-semibold bg-surface-container px-1.5 py-0.5 rounded text-[10px]">{selectedMaterialForDetails.categoria || 'N/C'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Ano Pub.</span>
+                          <span className="font-semibold">{selectedMaterialForDetails.ano || 'N/C'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Exemplares</span>
+                          <span className="font-semibold">{selectedMaterialForDetails.exemplares_disponiveis} de {selectedMaterialForDetails.exemplares_total} disp.</span>
+                        </div>
+                      </div>
+
+                      {selectedMaterialForDetails.curso && (
+                        <div className="pt-1">
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Curso Associado</span>
+                          <span className="font-semibold text-secondary">{selectedMaterialForDetails.curso}</span>
+                        </div>
+                      )}
+
+                      <hr className="border-outline-variant/30 my-2" />
+
+                      {/* Ficha catalográfica expandida */}
+                      <div className="space-y-2 text-[11px] leading-relaxed">
+                        {selectedMaterialForDetails.numero_chamada && (
+                          <div>
+                            <span className="text-on-surface-variant">Classificação / Chamada: </span>
+                            <span className="font-semibold">{selectedMaterialForDetails.numero_chamada}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.titulo_original && (
+                          <div>
+                            <span className="text-on-surface-variant">Título Original: </span>
+                            <span className="font-semibold italic">{selectedMaterialForDetails.titulo_original}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.publicacao && (
+                          <div>
+                            <span className="text-on-surface-variant">Publicação: </span>
+                            <span className="font-semibold">{selectedMaterialForDetails.publicacao}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.descricao_fisica && (
+                          <div>
+                            <span className="text-on-surface-variant">Descrição Física: </span>
+                            <span className="font-semibold">{selectedMaterialForDetails.descricao_fisica}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.serie && (
+                          <div>
+                            <span className="text-on-surface-variant">Série / Coleção: </span>
+                            <span className="font-semibold">{selectedMaterialForDetails.serie}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.prateleira && (
+                          <div>
+                            <span className="text-on-surface-variant">Localização / Prateleira: </span>
+                            <span className="font-semibold">{selectedMaterialForDetails.prateleira}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.assuntos && (
+                          <div>
+                            <span className="text-on-surface-variant">Assuntos / Indexadores: </span>
+                            <span className="font-semibold text-primary/90">{selectedMaterialForDetails.assuntos}</span>
+                          </div>
+                        )}
+
+                        {selectedMaterialForDetails.notas && (
+                          <div className="bg-surface p-2 rounded border border-outline-variant/20 mt-1 font-sans">
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5 font-mono">Notas Gerais</span>
+                            <p className="font-normal italic leading-snug">{selectedMaterialForDetails.notas}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <footer className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-outline-variant/30 mt-6 select-none font-sans">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMaterialForDetails(null)}
+                  className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer text-center bg-white"
+                >
+                  Fechar
+                </button>
+                <a
+                  href={`/admin/acervo?search=${selectedMaterialForDetails.titulo}`}
+                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Ver no Acervo</span>
+                </a>
+              </footer>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { 
@@ -16,7 +16,8 @@ import {
   Phone,
   GraduationCap,
   Sparkles,
-  X
+  X,
+  Contrast
 } from 'lucide-react';
 
 /**
@@ -33,6 +34,24 @@ export default function LoginPage() {
   // Estados de navegação e inputs
   const [activeTab, setActiveTab] = useState<'leitor' | 'gestor'>('leitor');
   const [email, setEmail] = useState('');
+
+  const [highContrast, setHighContrast] = useState(false);
+
+  useEffect(() => {
+    const isHc = localStorage.getItem('high-contrast') === 'true';
+    setHighContrast(isHc);
+  }, []);
+
+  const toggleHighContrast = () => {
+    const nextHc = !highContrast;
+    setHighContrast(nextHc);
+    localStorage.setItem('high-contrast', String(nextHc));
+    if (nextHc) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  };
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   
@@ -277,6 +296,18 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-surface flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden select-none">
       
+      {/* Botão de Alto Contraste Flutuante */}
+      <div className="absolute top-6 right-6 z-20">
+        <button
+          onClick={toggleHighContrast}
+          className="text-on-surface-variant hover:text-primary p-2.5 hover:bg-surface-container transition-all rounded-full active:scale-95 duration-100 cursor-pointer flex items-center justify-center border border-outline-variant bg-white"
+          aria-label="Alternar modo de alto contraste"
+          title="Modo de Alto Contraste"
+        >
+          <Contrast className="w-4 h-4" />
+        </button>
+      </div>
+      
       {/* Detalhes estéticos de fundo (Padrão Acadêmico/Premium) */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full filter blur-3xl pointer-events-none -mr-20 -mt-20"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/5 rounded-full filter blur-3xl pointer-events-none -ml-20 -mb-20"></div>
@@ -286,7 +317,7 @@ export default function LoginPage() {
         {/* Logotipo Acadêmico */}
         <div className="flex justify-center items-center h-16">
           <img 
-            src="/marca.JPG" 
+            src="/logoinbook.png" 
             alt="INBOOK Logo" 
             className="h-14 w-auto object-contain" 
           />

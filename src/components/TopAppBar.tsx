@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen, Bell, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, Bell, LogOut, Menu, X, Contrast } from 'lucide-react';
 
 interface TopAppBarProps {
   onMenuClick?: () => void;
@@ -21,6 +21,24 @@ export default function TopAppBar({ onMenuClick, userEmail, userName }: TopAppBa
 
   const [reservas, setReservas] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+
+  const [highContrast, setHighContrast] = useState(false);
+
+  useEffect(() => {
+    const isHc = localStorage.getItem('high-contrast') === 'true';
+    setHighContrast(isHc);
+  }, []);
+
+  const toggleHighContrast = () => {
+    const nextHc = !highContrast;
+    setHighContrast(nextHc);
+    localStorage.setItem('high-contrast', String(nextHc));
+    if (nextHc) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  };
 
   // Busca solicitações de reservas pendentes
   useEffect(() => {
@@ -93,6 +111,16 @@ export default function TopAppBar({ onMenuClick, userEmail, userName }: TopAppBa
       {/* Lado Direito: Ações do Usuário */}
       <div className="flex items-center gap-4">
         
+        {/* Botão de Alto Contraste */}
+        <button
+          onClick={toggleHighContrast}
+          className="text-on-surface-variant hover:text-primary p-2 hover:bg-surface-container-high transition-all rounded-full active:scale-95 duration-100 cursor-pointer"
+          aria-label="Alternar modo de alto contraste"
+          title="Modo de Alto Contraste"
+        >
+          <Contrast className="w-4 h-4" />
+        </button>
+
         {/* Sino de Notificações - Solicitações de Reserva */}
         <div className="relative">
           <button 

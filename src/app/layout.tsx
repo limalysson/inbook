@@ -29,7 +29,24 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${publicSans.variable} ${sourceSerif4.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const hc = localStorage.getItem('high-contrast') === 'true';
+                  if (hc) {
+                    document.documentElement.classList.add('high-contrast');
+                  }
+                } catch (e) {}
+              })();
+            `
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans bg-surface text-on-surface">
         {children}
       </body>

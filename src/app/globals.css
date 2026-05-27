@@ -3,42 +3,180 @@
 :root {
   --background: #fbf9f6;
   --foreground: #1b1c1a;
+
+  /* Sistema de Cores Aprovado (DESIGN.md) */
+  --primary: #000021;
+  --on-primary: #ffffff;
+  --primary-container: #161846;
+  --on-primary-container: #7f81b5;
+  
+  --secondary: #af2f26;
+  --on-secondary: #ffffff;
+  --secondary-container: #fe6858;
+  --on-secondary-container: #690003;
+  
+  --surface: #fbf9f6;
+  --surface-dim: #dbdad7;
+  --surface-bright: #fbf9f6;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f5f3f1;
+  --surface-container: #efeeeb;
+  --surface-container-high: #e9e8e5;
+  --surface-container-highest: #e4e2e0;
+  
+  --on-surface: #1b1c1a;
+  --on-surface-variant: #46464f;
+  
+  --outline: #777680;
+  --outline-variant: #c7c5d0;
+  
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
 }
+
+/* ==========================================================================
+   Modo de Alto Contraste Global (Acessibilidade WCAG 2.1 AAA)
+   Garante contraste máximo substituindo as classes estáticas (ex: bg-white)
+   ========================================================================== */
+.high-contrast,
+.high-contrast body,
+.high-contrast main,
+.high-contrast header,
+.high-contrast footer,
+.high-contrast aside,
+.high-contrast div,
+.high-contrast section,
+.high-contrast article,
+.high-contrast nav,
+.high-contrast table,
+.high-contrast thead,
+.high-contrast tbody,
+.high-contrast tr,
+.high-contrast th,
+.high-contrast td,
+.high-contrast ul,
+.high-contrast li,
+.high-contrast form {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+/* Inputs, seletores e campos de texto */
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Links e textos de alta importância */
+.high-contrast a,
+.high-contrast .text-primary,
+.high-contrast p.text-primary,
+.high-contrast span.text-primary,
+.high-contrast h1,
+.high-contrast h2,
+.high-contrast h3,
+.high-contrast h4,
+.high-contrast h5,
+.high-contrast h6,
+.high-contrast strong {
+  color: #ffff00 !important; /* Amarelo Puro */
+}
+
+/* Links específicos com sublinhado para clareza */
+.high-contrast a,
+.high-contrast .cursor-pointer.hover\:underline {
+  text-decoration: underline !important;
+  color: #ffff00 !important;
+}
+
+/* Botões e chips primários */
+.high-contrast button,
+.high-contrast .bg-primary,
+.high-contrast a.bg-primary {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffff00 !important;
+  font-weight: bold !important;
+}
+
+/* Elementos de destaque secundário e status */
+.high-contrast .bg-secondary,
+.high-contrast .bg-secondary-container,
+.high-contrast .text-secondary,
+.high-contrast span.text-secondary {
+  background-color: #00ffff !important;
+  color: #000000 !important;
+  border: 2px solid #00ffff !important;
+  font-weight: bold !important;
+}
+
+/* Alertas e estados de erro */
+.high-contrast .bg-error,
+.high-contrast .bg-error-container,
+.high-contrast .text-error,
+.high-contrast .text-on-error-container,
+.high-contrast .bg-error-container-high {
+  background-color: #ff00ff !important; /* Magenta Puro */
+  color: #000000 !important;
+  border: 2px solid #ff00ff !important;
+  font-weight: bold !important;
+}
+
+/* Garantir que SVGs (ícones) fiquem visíveis com cores de alto contraste */
+.high-contrast svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+/* Remove sombras, desfoques e transições para otimizar desempenho de acessibilidade */
+.high-contrast * {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition: none !important;
+  animation-duration: 0s !important;
+}
+
+/* ========================================================================== */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   
-  /* Sistema de Cores Aprovado (DESIGN.md) */
-  --color-primary: #000021;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #161846;
-  --color-on-primary-container: #7f81b5;
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
   
-  --color-secondary: #af2f26;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #fe6858;
-  --color-on-secondary-container: #690003;
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
   
-  --color-surface: #fbf9f6;
-  --color-surface-dim: #dbdad7;
-  --color-surface-bright: #fbf9f6;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f5f3f1;
-  --color-surface-container: #efeeeb;
-  --color-surface-container-high: #e9e8e5;
-  --color-surface-container-highest: #e4e2e0;
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
   
-  --color-on-surface: #1b1c1a;
-  --color-on-surface-variant: #46464f;
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
   
-  --color-outline: #777680;
-  --color-outline-variant: #c7c5d0;
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
   
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
   
   /* Fontes e Tipografia (DESIGN.md) */
   --font-sans: var(--font-public-sans);

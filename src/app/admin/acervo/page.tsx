@@ -499,8 +499,8 @@ function AcervoPageContent() {
             }}
             className="flex items-center justify-center gap-2 bg-primary text-on-primary px-5 py-3 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>Adicionar Novo Livro</span>
+            <FileText className="w-4 h-4" />
+            <span>Adicionar Livro</span>
           </button>
         </div>
       </header>

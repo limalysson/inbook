@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   FileText,
   X,
-  RefreshCw
+  RefreshCw,
+  Contrast
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Usuario, Material, Circulacao } from '@/types';
@@ -40,9 +41,28 @@ export default function PortalPage() {
   const [acervo, setAcervo] = useState<Material[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
   
+  
   // Estados de controle de interface
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [highContrast, setHighContrast] = useState(false);
+
+  useEffect(() => {
+    const isHc = localStorage.getItem('high-contrast') === 'true';
+    setHighContrast(isHc);
+  }, []);
+
+  const toggleHighContrast = () => {
+    const nextHc = !highContrast;
+    setHighContrast(nextHc);
+    localStorage.setItem('high-contrast', String(nextHc));
+    if (nextHc) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  };
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedCourse, setSelectedCourse] = useState('Todos');
   const [selectedMaterialDetails, setSelectedMaterialDetails] = useState<Material | null>(null);
@@ -285,7 +305,7 @@ export default function PortalPage() {
       <header className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant/40 flex justify-between items-center px-6 py-3 h-16 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           <img 
-            src="/marca.JPG" 
+            src="/logoinbook.png" 
             alt="INBOOK Logo" 
             className="h-8 w-auto object-contain" 
           />
@@ -296,6 +316,16 @@ export default function PortalPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Botão de Alto Contraste */}
+          <button
+            onClick={toggleHighContrast}
+            className="text-on-surface-variant hover:text-primary p-2 hover:bg-surface-container-high transition-all rounded-full active:scale-95 duration-100 cursor-pointer"
+            aria-label="Alternar modo de alto contraste"
+            title="Modo de Alto Contraste"
+          >
+            <Contrast className="w-5 h-5" />
+          </button>
+
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-primary">{profile?.nome_completo}</p>
             <p className="text-[9px] text-on-surface-variant uppercase tracking-wider font-bold opacity-75">

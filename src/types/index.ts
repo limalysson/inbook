@@ -50,14 +50,6 @@ export interface Circulacao {
   renovacoes_contagem: number;
   
   // Joins opcionais para listagens dinâmicas
-  usuario?: {
-    nome_completo: string;
-    matricula: string;
-    foto_url?: string;
-  };
-  material?: {
-    titulo: string;
-    autor: string;
-    capa_url?: string;
-  };
+  usuario?: Usuario;
+  material?: Material;
 }
