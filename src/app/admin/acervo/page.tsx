@@ -473,7 +473,7 @@ function AcervoPageContent() {
           />
         </div>
         
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           {/* Seletor de Categoria */}
           <select
             value={selectedCategory}
@@ -530,8 +530,8 @@ function AcervoPageContent() {
               <tr>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Título</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Autor</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">ISBN</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Categoria</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden md:table-cell">ISBN</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">Categoria</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Disponíveis</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
               </tr>
@@ -549,7 +549,7 @@ function AcervoPageContent() {
                   <tr key={item.id} className="hover:bg-surface-container/10 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-12 bg-surface-container-high rounded-sm flex items-center justify-center text-primary border border-outline-variant/30 overflow-hidden shrink-0">
+                        <div className="w-8 h-12 bg-surface-container-high rounded-sm hidden sm:flex items-center justify-center text-primary border border-outline-variant/30 overflow-hidden shrink-0">
                           {item.capa_url ? (
                             <img src={item.capa_url} alt="Capa" className="w-full h-full object-cover" />
                           ) : (
@@ -584,8 +584,8 @@ function AcervoPageContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-on-surface">{item.autor}</td>
-                    <td className="px-6 py-4 text-on-surface-variant font-mono text-xs">{item.isbn}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-on-surface-variant font-mono text-xs hidden md:table-cell">{item.isbn}</td>
+                    <td className="px-6 py-4 hidden sm:table-cell">
                       <span className="px-2.5 py-0.5 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold">
                         {item.categoria}
                       </span>

@@ -443,9 +443,9 @@ export default function RelatoriosPage() {
                 <tr className="border-b border-outline-variant/40 text-xs font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-low">
                   <th className="px-6 py-4">Leitor</th>
                   <th className="px-6 py-4">Livro / Material</th>
-                  <th className="px-6 py-4">Empréstimo</th>
+                  <th className="px-6 py-4 hidden md:table-cell">Empréstimo</th>
                   <th className="px-6 py-4">Prazo Limite / Devolução</th>
-                  <th className="px-6 py-4">Status Prazo</th>
+                  <th className="px-6 py-4 hidden sm:table-cell">Status Prazo</th>
                   <th className="px-6 py-4 text-right">Multa</th>
                 </tr>
               </thead>
@@ -458,7 +458,7 @@ export default function RelatoriosPage() {
                     {/* Leitor */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10">
+                        <div className="w-8 h-8 rounded-full bg-primary/5 text-primary hidden sm:flex items-center justify-center shrink-0 border border-primary/10">
                           <User className="w-4 h-4" />
                         </div>
                         <div>
@@ -475,7 +475,7 @@ export default function RelatoriosPage() {
                     </td>
 
                     {/* Empréstimo */}
-                    <td className="px-6 py-4 text-on-surface-variant font-medium">
+                    <td className="px-6 py-4 text-on-surface-variant font-medium hidden md:table-cell">
                       {formatDate(item.data_emprestimo)}
                     </td>
 
@@ -503,7 +503,7 @@ export default function RelatoriosPage() {
                     </td>
 
                     {/* Status do Prazo */}
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 hidden sm:table-cell">
                       {item.prazoStatus === 'no_prazo' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/10">
                           <CheckCircle2 className="w-3.5 h-3.5" />

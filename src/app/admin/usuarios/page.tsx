@@ -365,7 +365,7 @@ function UsuariosPageContent() {
           />
         </div>
 
-        <div className="flex gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           {/* Seletor de Vínculo */}
           <select
             value={selectedType}
@@ -410,8 +410,8 @@ function UsuariosPageContent() {
               <tr>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">ID/Matrícula</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Curso / Departamento</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">E-mail</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden md:table-cell">Curso / Departamento</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">E-mail</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Status</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
               </tr>
@@ -429,7 +429,7 @@ function UsuariosPageContent() {
                   <tr key={user.id} className="hover:bg-surface-container/10 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shadow-sm">
+                        <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container hidden sm:flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
                           {user.nome_completo.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
@@ -441,8 +441,8 @@ function UsuariosPageContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-on-surface font-semibold">{user.matricula}</td>
-                    <td className="px-6 py-4 text-on-surface-variant">{user.curso_departamento || 'Sem curso'}</td>
-                    <td className="px-6 py-4 text-on-surface-variant">{user.email}</td>
+                    <td className="px-6 py-4 text-on-surface-variant hidden md:table-cell">{user.curso_departamento || 'Sem curso'}</td>
+                    <td className="px-6 py-4 text-on-surface-variant hidden sm:table-cell">{user.email}</td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleToggleStatus(user.id, user.status)}

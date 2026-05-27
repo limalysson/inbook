@@ -578,9 +578,9 @@ export default function CirculacaoPage() {
                     <tr>
                       <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor</th>
                       <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Material</th>
-                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Data Empréstimo</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden md:table-cell">Data Empréstimo</th>
                       <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Prazo Limite / Status</th>
-                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Renovações</th>
+                      <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center hidden sm:table-cell">Renovações</th>
                       <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
                     </tr>
                   </thead>
@@ -592,7 +592,7 @@ export default function CirculacaoPage() {
                         <tr key={loan.id} className="hover:bg-surface-container/10 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shrink-0 select-none border border-outline-variant/50">
+                              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container hidden sm:flex items-center justify-center font-bold text-xs shrink-0 select-none border border-outline-variant/50">
                                 {loan.usuario?.nome_completo ? loan.usuario.nome_completo.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'LE'}
                               </div>
                               <div>
@@ -611,7 +611,7 @@ export default function CirculacaoPage() {
                               {loan.material?.autor}
                             </p>
                           </td>
-                          <td className="px-6 py-4 text-on-surface-variant font-semibold">
+                          <td className="px-6 py-4 text-on-surface-variant font-semibold hidden md:table-cell">
                             {formatDate(loan.data_emprestimo)}
                           </td>
                           <td className="px-6 py-4">
@@ -637,7 +637,7 @@ export default function CirculacaoPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-4 text-center hidden sm:table-cell">
                             <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-0.5 rounded-md ${
                               loan.renovacoes_contagem >= 3 
                                 ? 'bg-error-container/30 text-on-error-container/80'
@@ -649,10 +649,10 @@ export default function CirculacaoPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-1.5 sm:gap-2">
                               <button
                                 onClick={() => handleReturnBook(loan)}
-                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm inline-flex items-center gap-1 shrink-0"
+                                className="px-3 py-1.5 bg-primary text-on-primary text-[11px] font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm inline-flex items-center justify-center gap-1 shrink-0"
                                 title="Registrar Devolução Física"
                               >
                                 <CheckCircle className="w-3.5 h-3.5 animate-pulse" />
@@ -661,7 +661,7 @@ export default function CirculacaoPage() {
                               <button
                                 onClick={() => handleRenewBook(loan)}
                                 disabled={loan.renovacoes_contagem >= 3}
-                                className="px-3 py-1.5 border border-outline text-primary text-[11px] font-bold rounded hover:bg-surface-container active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer inline-flex items-center gap-1 shrink-0 bg-white"
+                                className="px-3 py-1.5 border border-outline text-primary text-[11px] font-bold rounded hover:bg-surface-container active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1 shrink-0 bg-white"
                                 title="Estender Prazo em +7 dias"
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
@@ -698,7 +698,7 @@ export default function CirculacaoPage() {
                 <tr>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Material</th>
-                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Data Empréstimo</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">Data Empréstimo</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Data Devolução</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Status</th>
                 </tr>
@@ -723,7 +723,7 @@ export default function CirculacaoPage() {
                         <p className="font-bold text-primary">{loan.material?.titulo}</p>
                         <p className="text-[10px] text-on-surface-variant">{loan.material?.autor}</p>
                       </td>
-                      <td className="px-6 py-4 text-on-surface-variant font-semibold">
+                      <td className="px-6 py-4 text-on-surface-variant font-semibold hidden sm:table-cell">
                         {formatDate(loan.data_emprestimo)}
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant font-semibold">
@@ -875,7 +875,7 @@ export default function CirculacaoPage() {
                 <tr>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Leitor / Matrícula</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Livro / Estoque</th>
-                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Solicitado em</th>
+                  <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">Solicitado em</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs">Status / Detalhes</th>
                   <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações Operacionais</th>
                 </tr>
@@ -914,7 +914,7 @@ export default function CirculacaoPage() {
                         </td>
 
                         {/* Data Solicitação */}
-                        <td className="px-6 py-4 text-on-surface-variant font-semibold">
+                        <td className="px-6 py-4 text-on-surface-variant font-semibold hidden sm:table-cell">
                           {formatDate(res.data_solicitacao)}
                         </td>
 
