@@ -79,6 +79,7 @@ function AcervoPageContent() {
 
   // Estados de Edição e Imagem/PDF
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [capaFile, setCapaFile] = useState<File | null>(null);
   const [capaPreviewUrl, setCapaPreviewUrl] = useState<string | null>(null);
@@ -115,10 +116,14 @@ function AcervoPageContent() {
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
       setIsDocumentMode(false);
+      setEditingMaterial(null);
+      setIsEditMode(true);
       setIsModalOpen(true);
     } else if (searchParams.get('add_doc') === 'true') {
       setIsDocumentMode(true);
       setNewCategory('Monografia');
+      setEditingMaterial(null);
+      setIsEditMode(true);
       setIsModalOpen(true);
     }
   }, [searchParams]);
@@ -388,6 +393,7 @@ function AcervoPageContent() {
     const isDoc = ['Monografia', 'TCC', 'Artigo Científico', 'Dissertação', 'Relatório Técnico'].includes(material.categoria);
     setIsDocumentMode(isDoc);
     
+    setIsEditMode(false);
     setIsModalOpen(true);
   };
 
@@ -436,6 +442,27 @@ function AcervoPageContent() {
             onClick={() => {
               setIsDocumentMode(true);
               setNewCategory('Monografia');
+              setEditingMaterial(null);
+              setIsEditMode(true);
+              // Limpa preventivamente os campos
+              setNewTitle('');
+              setNewAuthor('');
+              setNewIsbn('');
+              setNewYear('');
+              setNewCopies('1');
+              setNewShelf('');
+              setNewCurso('Multidisciplinar / Geral');
+              setNewNumeroChamada('');
+              setNewTituloOriginal('');
+              setNewPublicacao('');
+              setNewDescricaoFisica('');
+              setNewSerie('');
+              setNewNotas('');
+              setNewAssuntos('');
+              setCapaFile(null);
+              setCapaPreviewUrl(null);
+              setPdfFile(null);
+              setPdfUrl(null);
               setIsModalOpen(true);
             }}
             className="flex items-center justify-center gap-2 border border-primary text-primary hover:bg-primary/5 px-5 py-3 rounded text-sm font-semibold active:scale-95 transition-all shadow-sm cursor-pointer bg-white"
@@ -447,6 +474,27 @@ function AcervoPageContent() {
             onClick={() => {
               setIsDocumentMode(false);
               setNewCategory('');
+              setEditingMaterial(null);
+              setIsEditMode(true);
+              // Limpa preventivamente os campos
+              setNewTitle('');
+              setNewAuthor('');
+              setNewIsbn('');
+              setNewYear('');
+              setNewCopies('1');
+              setNewShelf('');
+              setNewCurso('Multidisciplinar / Geral');
+              setNewNumeroChamada('');
+              setNewTituloOriginal('');
+              setNewPublicacao('');
+              setNewDescricaoFisica('');
+              setNewSerie('');
+              setNewNotas('');
+              setNewAssuntos('');
+              setCapaFile(null);
+              setCapaPreviewUrl(null);
+              setPdfFile(null);
+              setPdfUrl(null);
               setIsModalOpen(true);
             }}
             className="flex items-center justify-center gap-2 bg-primary text-on-primary px-5 py-3 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
@@ -533,7 +581,7 @@ function AcervoPageContent() {
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden md:table-cell">ISBN</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">Categoria</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Disponíveis</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right hidden sm:table-cell">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/30">
@@ -557,8 +605,14 @@ function AcervoPageContent() {
                           )}
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-primary line-clamp-1">{item.titulo}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                            <p 
+                              onClick={() => startEditMaterial(item)}
+                              className="font-bold text-primary hover:underline cursor-pointer select-none line-clamp-2"
+                              title="Clique para ver os detalhes"
+                            >
+                              {item.titulo}
+                            </p>
                             {item.pdf_url && (
                               <a 
                                 href={item.pdf_url} 
@@ -600,7 +654,7 @@ function AcervoPageContent() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right hidden sm:table-cell">
                       <div className="flex justify-end items-center gap-2">
                         <button
                           onClick={() => startEditMaterial(item)}
@@ -676,11 +730,13 @@ function AcervoPageContent() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white border border-outline-variant w-full max-w-2xl rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            
             <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
               <h3 className="font-serif text-lg font-bold text-primary">
                 {editingMaterial 
-                  ? (isDocumentMode ? 'Editar Documento Acadêmico' : 'Editar Livro') 
+                  ? (!isEditMode 
+                      ? (isDocumentMode ? 'Detalhes do Documento Acadêmico' : 'Ficha Técnica do Livro') 
+                      : (isDocumentMode ? 'Editar Documento Acadêmico' : 'Editar Livro')
+                    ) 
                   : (isDocumentMode ? 'Cadastrar Novo Documento Acadêmico' : 'Cadastrar Novo Livro')
                 }
               </h3>
@@ -715,375 +771,563 @@ function AcervoPageContent() {
               </button>
             </header>
 
-            <form onSubmit={handleSaveMaterial} className="p-6 space-y-6 overflow-y-auto flex-1">
-              {errorMsg && (
-                <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
-                  <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
-                  <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
-                </div>
-              )}
-
-              {/* BLOCO 1: DADOS PRINCIPAIS */}
-              <div className="space-y-4">
-                <div className="border-b border-outline-variant pb-1">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">1. Identificação Principal</h4>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                    {isDocumentMode ? 'Título Principal (TCC/Artigo)' : 'Título do Livro'} *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Core J2ME : tecnologia & MIDP..."
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Autor Principal *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Muchow, John W."
-                      value={newAuthor}
-                      onChange={(e) => setNewAuthor(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
+            {!isEditMode && editingMaterial ? (
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {errorMsg && (
+                  <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">ISBN / Identificador *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="978-0000000000"
-                      value={newIsbn}
-                      onChange={(e) => setNewIsbn(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Categoria *</label>
-                    <select
-                      required
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-on-surface h-9"
-                    >
-                      <option value="">Selecione</option>
-                      <option value="Filosofia">Filosofia</option>
-                      <option value="Ciência">Ciência</option>
-                      <option value="História">História</option>
-                      <option value="Literatura">Literatura</option>
-                      <option value="Tecnologia">Tecnologia</option>
-                      <option value="Programação">Programação</option>
-                      <option value="Banco de Dados">Banco de Dados</option>
-                      <option value="Infraestrutura">Infraestrutura</option>
-                      <option value="Monografia">Monografia</option>
-                      <option value="TCC">TCC</option>
-                      <option value="Artigo Científico">Artigo Científico</option>
-                      <option value="Dissertação">Dissertação</option>
-                      <option value="Relatório Técnico">Relatório Técnico</option>
-                    </select>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Curso *</label>
-                    <select
-                      required
-                      value={newCurso}
-                      onChange={(e) => setNewCurso(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-on-surface h-9"
-                    >
-                      <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
-                      <option value="Análise e Desenvolvimento de Sistemas (ADS)">ADS</option>
-                      <option value="Engenharia de Software">Eng. Software</option>
-                      <option value="Engenharia Civil">Eng. Civil</option>
-                      <option value="Direito">Direito</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ano Pub. *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="AAAA"
-                      value={newYear}
-                      onChange={(e) => setNewYear(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm text-center bg-white text-on-surface h-9"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Exemplares *</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={newCopies}
-                      onChange={(e) => setNewCopies(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm text-center bg-white text-on-surface h-9"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BLOCO 2: FICHA CATALOGRÁFICA AVANÇADA (OPCIONAL) */}
-              <div className="space-y-4 pt-2">
-                <div className="border-b border-outline-variant pb-1 flex justify-between items-center">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">2. Ficha Catalográfica (Ficha Técnica)</h4>
-                  <span className="text-[10px] text-on-surface-variant font-semibold bg-surface-container px-2 py-0.5 rounded">Opcional</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Número de Chamada (Localização)</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: 005.133 M915c"
-                      value={newNumeroChamada}
-                      onChange={(e) => setNewNumeroChamada(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Título Uniforme / Original</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Core J2ME. Português"
-                      value={newTituloOriginal}
-                      onChange={(e) => setNewTituloOriginal(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Dados de Publicação</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: São Paulo : Pearson, 2004"
-                      value={newPublicacao}
-                      onChange={(e) => setNewPublicacao(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Descrição Física</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: xiv, 588 p. : il. ; 24 cm"
-                      value={newDescricaoFisica}
-                      onChange={(e) => setNewDescricaoFisica(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Série / Coleção</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: (Java)"
-                      value={newSerie}
-                      onChange={(e) => setNewSerie(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Assuntos / Indexadores</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Java; Web; Mobile (separar por ponto e vírgula)"
-                      value={newAssuntos}
-                      onChange={(e) => setNewAssuntos(e.target.value)}
-                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Notas Gerais</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Ex: Inclui índice. A biblioteca possui a impressão de 2007."
-                    value={newNotas}
-                    onChange={(e) => setNewNotas(e.target.value)}
-                    className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* BLOCO 3: MÍDIAS E ARQUIVOS DIGITAIS */}
-              <div className="space-y-4 pt-2">
-                <div className="border-b border-outline-variant pb-1">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">3. Mídia e Arquivos Digitais</h4>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Upload de Capa */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Capa do Livro / Documento</label>
-                    <div className="flex gap-4 items-center bg-surface-container-low/20 p-3 rounded-lg border border-outline-variant/30 h-[96px]">
-                      <div className="w-12 h-16 bg-surface-container border border-outline-variant/30 rounded flex items-center justify-center text-primary overflow-hidden shrink-0 shadow-sm">
-                        {capaPreviewUrl ? (
-                          <img src={capaPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="w-5 h-5 opacity-30 text-primary" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 space-y-1">
-                        <div className="relative">
-                          <input
-                            type="file"
-                            id="capa-upload"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="capa-upload"
-                            className="flex items-center justify-center gap-1.5 border border-outline text-primary text-[10px] font-bold py-1.5 px-3 rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer shadow-sm w-max"
-                          >
-                            <Upload className="w-3 h-3" />
-                            <span>{capaPreviewUrl ? 'Alterar Capa' : 'Selecionar Capa'}</span>
-                          </label>
-                        </div>
-                        <p className="text-[9px] text-on-surface-variant italic leading-normal">
-                          Formatos imagem. Máx 5MB.
-                        </p>
-                        {capaPreviewUrl && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCapaFile(null);
-                              setCapaPreviewUrl(null);
-                            }}
-                            className="text-[9px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                            <span>Remover</span>
-                          </button>
-                        )}
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Coluna Esquerda: Capa e Acesso a PDF */}
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-full max-w-[160px] aspect-[2/3] bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant/30 shadow-md flex items-center justify-center text-primary relative group">
+                      {editingMaterial.capa_url ? (
+                        <img src={editingMaterial.capa_url} alt="Capa" className="w-full h-full object-cover" />
+                      ) : (
+                        <BookOpen className="w-12 h-12 opacity-35" />
+                      )}
                     </div>
+
+                    {editingMaterial.pdf_url ? (
+                      <a
+                        href={editingMaterial.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full max-w-[160px] flex items-center justify-center gap-2 bg-primary/10 text-primary text-xs font-bold py-2 px-3 rounded hover:bg-primary/20 transition-all text-center border border-primary/20 shadow-sm cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4 shrink-0" />
+                        <span>Visualizar PDF</span>
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-on-surface-variant/60 italic font-medium">Sem anexo digital (PDF)</span>
+                    )}
                   </div>
 
-                  {/* Upload de PDF */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span>Documento Digital (PDF)</span>
-                      {isDocumentMode && <span className="text-[10px] text-primary lowercase font-normal italic">(* recomendado)</span>}
-                    </label>
-                    <div className="flex gap-4 items-center bg-surface-container-low/20 p-3 rounded-lg border border-outline-variant/30 h-[96px]">
-                      <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary shrink-0 shadow-sm">
-                        <FileText className="w-5 h-5" />
-                      </div>
+                  {/* Coluna Direita (2/3): Ficha Catalográfica / Registro Técnico */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-5 shadow-inner font-mono text-xs text-on-surface relative overflow-hidden">
+                      {/* Biblioteca Style catalog card accent */}
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full translate-x-8 -translate-y-8" />
+                      
+                      <div className="space-y-3 relative z-10">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-primary font-bold block mb-0.5">Título Principal</span>
+                          <span className="text-sm font-bold font-serif text-primary block leading-snug">{editingMaterial.titulo}</span>
+                        </div>
 
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            id="pdf-upload"
-                            accept="application/pdf"
-                            onChange={handlePdfChange}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="pdf-upload"
-                            className="flex items-center justify-center gap-1.5 border border-outline text-primary text-[10px] font-bold py-1.5 px-3 rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer shadow-sm w-max shrink-0"
-                          >
-                            <Upload className="w-3 h-3" />
-                            <span>{pdfFile || pdfUrl ? 'Substituir PDF' : 'Selecionar PDF'}</span>
-                          </label>
-                          
-                          {(pdfFile || pdfUrl) && (
-                            <span className="text-[10px] text-on-surface font-semibold truncate max-w-[90px]" title={pdfFile ? pdfFile.name : 'PDF Carregado'}>
-                              {pdfFile ? pdfFile.name : 'Anexo PDF'}
-                            </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Autor</span>
+                            <span className="font-semibold">{editingMaterial.autor || 'N/C'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">ISBN / Código</span>
+                            <span className="font-semibold">{editingMaterial.isbn || 'N/C'}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Categoria</span>
+                            <span className="font-semibold bg-surface-container px-1.5 py-0.5 rounded text-[10px]">{editingMaterial.categoria || 'N/C'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Ano Pub.</span>
+                            <span className="font-semibold">{editingMaterial.ano || 'N/C'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Exemplares</span>
+                            <span className="font-semibold">{editingMaterial.exemplares_disponiveis} de {editingMaterial.exemplares_total} disp.</span>
+                          </div>
+                        </div>
+
+                        {editingMaterial.curso && (
+                          <div className="pt-1">
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Curso Associado</span>
+                            <span className="font-semibold text-secondary">{editingMaterial.curso}</span>
+                          </div>
+                        )}
+
+                        <hr className="border-outline-variant/30 my-2" />
+
+                        {/* Ficha catalográfica expandida */}
+                        <div className="space-y-2 text-[11px] leading-relaxed">
+                          {editingMaterial.numero_chamada && (
+                            <div>
+                              <span className="text-on-surface-variant">Classificação / Chamada: </span>
+                              <span className="font-semibold">{editingMaterial.numero_chamada}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.titulo_original && (
+                            <div>
+                              <span className="text-on-surface-variant">Título Original: </span>
+                              <span className="font-semibold italic">{editingMaterial.titulo_original}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.publicacao && (
+                            <div>
+                              <span className="text-on-surface-variant">Publicação: </span>
+                              <span className="font-semibold">{editingMaterial.publicacao}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.descricao_fisica && (
+                            <div>
+                              <span className="text-on-surface-variant">Descrição Física: </span>
+                              <span className="font-semibold">{editingMaterial.descricao_fisica}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.serie && (
+                            <div>
+                              <span className="text-on-surface-variant">Série / Coleção: </span>
+                              <span className="font-semibold">{editingMaterial.serie}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.prateleira && (
+                            <div>
+                              <span className="text-on-surface-variant">Localização / Prateleira: </span>
+                              <span className="font-semibold">{editingMaterial.prateleira}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.assuntos && (
+                            <div>
+                              <span className="text-on-surface-variant">Assuntos / Indexadores: </span>
+                              <span className="font-semibold text-primary/90">{editingMaterial.assuntos}</span>
+                            </div>
+                          )}
+
+                          {editingMaterial.notas && (
+                            <div className="bg-surface p-2 rounded border border-outline-variant/20 mt-1">
+                              <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Notas Gerais</span>
+                              <p className="font-normal italic leading-snug">{editingMaterial.notas}</p>
+                            </div>
                           )}
                         </div>
-                        <p className="text-[9px] text-on-surface-variant italic leading-normal">
-                          Documento PDF. Máx 20MB.
-                        </p>
-                        {(pdfFile || pdfUrl) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPdfFile(null);
-                              setPdfUrl(null);
-                            }}
-                            className="text-[9px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                            <span>Remover</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setEditingMaterial(null);
-                    setNewTitle('');
-                    setNewAuthor('');
-                    setNewIsbn('');
-                    setNewCategory('');
-                    setNewYear('');
-                    setNewCopies('1');
-                    setNewShelf('');
-                    setNewCurso('Multidisciplinar / Geral');
-                    setNewNumeroChamada('');
-                    setNewTituloOriginal('');
-                    setNewPublicacao('');
-                    setNewDescricaoFisica('');
-                    setNewSerie('');
-                    setNewNotas('');
-                    setNewAssuntos('');
-                    setCapaFile(null);
-                    setCapaPreviewUrl(null);
-                    setPdfFile(null);
-                    setPdfUrl(null);
-                    setErrorMsg(null);
-                  }}
-                  className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || uploadingFile || uploadingPdf}
-                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{uploadingFile ? 'Enviando Capa...' : (uploadingPdf ? 'Enviando PDF...' : 'Salvando...')}</span>
-                    </>
-                  ) : (
-                    <span>{editingMaterial ? 'Salvar Alterações' : 'Salvar no Acervo'}</span>
-                  )}
-                </button>
-              </footer>
-            </form>
+                <footer className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-outline-variant/30 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setEditingMaterial(null);
+                    }}
+                    className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer text-center"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingMaterial) {
+                        handleDeleteMaterial(editingMaterial.id);
+                        setIsModalOpen(false);
+                        setEditingMaterial(null);
+                      }
+                    }}
+                    className="flex-1 py-3 border border-secondary/30 text-secondary text-sm font-semibold rounded hover:bg-secondary/5 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir Material</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditMode(true);
+                    }}
+                    className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Editar Cadastro</span>
+                  </button>
+                </footer>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveMaterial} className="p-6 space-y-6 overflow-y-auto flex-1">
+                {errorMsg && (
+                  <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+                  </div>
+                )}
+
+                {/* BLOCO 1: DADOS PRINCIPAIS */}
+                <div className="space-y-4">
+                  <div className="border-b border-outline-variant pb-1">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">1. Identificação Principal</h4>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                      {isDocumentMode ? 'Título Principal (TCC/Artigo)' : 'Título do Livro'} *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Core J2ME : tecnologia & MIDP..."
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Autor Principal *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Muchow, John W."
+                        value={newAuthor}
+                        onChange={(e) => setNewAuthor(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">ISBN / Identificador *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="978-0000000000"
+                        value={newIsbn}
+                        onChange={(e) => setNewIsbn(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Categoria *</label>
+                      <select
+                        required
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-on-surface h-9"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="Filosofia">Filosofia</option>
+                        <option value="Ciência">Ciência</option>
+                        <option value="História">História</option>
+                        <option value="Literatura">Literatura</option>
+                        <option value="Tecnologia">Tecnologia</option>
+                        <option value="Programação">Programação</option>
+                        <option value="Banco de Dados">Banco de Dados</option>
+                        <option value="Infraestrutura">Infraestrutura</option>
+                        <option value="Monografia">Monografia</option>
+                        <option value="TCC">TCC</option>
+                        <option value="Artigo Científico">Artigo Científico</option>
+                        <option value="Dissertação">Dissertação</option>
+                        <option value="Relatório Técnico">Relatório Técnico</option>
+                      </select>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Curso *</label>
+                      <select
+                        required
+                        value={newCurso}
+                        onChange={(e) => setNewCurso(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-on-surface h-9"
+                      >
+                        <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
+                        <option value="Análise e Desenvolvimento de Sistemas (ADS)">ADS</option>
+                        <option value="Engenharia de Software">Eng. Software</option>
+                        <option value="Engenharia Civil">Eng. Civil</option>
+                        <option value="Direito">Direito</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ano Pub. *</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="AAAA"
+                        value={newYear}
+                        onChange={(e) => setNewYear(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm text-center bg-white text-on-surface h-9"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Exemplares *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        value={newCopies}
+                        onChange={(e) => setNewCopies(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm text-center bg-white text-on-surface h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO 2: FICHA CATALOGRÁFICA AVANÇADA (OPCIONAL) */}
+                <div className="space-y-4 pt-2">
+                  <div className="border-b border-outline-variant pb-1 flex justify-between items-center">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">2. Ficha Catalográfica (Ficha Técnica)</h4>
+                    <span className="text-[10px] text-on-surface-variant font-semibold bg-surface-container px-2 py-0.5 rounded">Opcional</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Número de Chamada (Localização)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 005.133 M915c"
+                        value={newNumeroChamada}
+                        onChange={(e) => setNewNumeroChamada(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Título Uniforme / Original</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Core J2ME. Português"
+                        value={newTituloOriginal}
+                        onChange={(e) => setNewTituloOriginal(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Dados de Publicação</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: São Paulo : Pearson, 2004"
+                        value={newPublicacao}
+                        onChange={(e) => setNewPublicacao(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Descrição Física</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: xiv, 588 p. : il. ; 24 cm"
+                        value={newDescricaoFisica}
+                        onChange={(e) => setNewDescricaoFisica(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Série / Coleção</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: (Java)"
+                        value={newSerie}
+                        onChange={(e) => setNewSerie(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Assuntos / Indexadores</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Java; Web; Mobile (separar por ponto e vírgula)"
+                        value={newAssuntos}
+                        onChange={(e) => setNewAssuntos(e.target.value)}
+                        className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Notas Gerais</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Ex: Inclui índice. A biblioteca possui a impressão de 2007."
+                      value={newNotas}
+                      onChange={(e) => setNewNotas(e.target.value)}
+                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm bg-white text-on-surface resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* BLOCO 3: MÍDIAS E ARQUIVOS DIGITAIS */}
+                <div className="space-y-4 pt-2">
+                  <div className="border-b border-outline-variant pb-1">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">3. Mídia e Arquivos Digitais</h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Upload de Capa */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Capa do Livro / Documento</label>
+                      <div className="flex gap-4 items-center bg-surface-container-low/20 p-3 rounded-lg border border-outline-variant/30 h-[96px]">
+                        <div className="w-12 h-16 bg-surface-container border border-outline-variant/30 rounded flex items-center justify-center text-primary overflow-hidden shrink-0 shadow-sm">
+                          {capaPreviewUrl ? (
+                            <img src={capaPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 opacity-30 text-primary" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <div className="relative">
+                            <input
+                              type="file"
+                              id="capa-upload"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="capa-upload"
+                              className="flex items-center justify-center gap-1.5 border border-outline text-primary text-[10px] font-bold py-1.5 px-3 rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer shadow-sm w-max"
+                            >
+                              <Upload className="w-3 h-3" />
+                              <span>{capaPreviewUrl ? 'Alterar Capa' : 'Selecionar Capa'}</span>
+                            </label>
+                          </div>
+                          <p className="text-[9px] text-on-surface-variant italic leading-normal">
+                            Formatos imagem. Máx 5MB.
+                          </p>
+                          {capaPreviewUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCapaFile(null);
+                                setCapaPreviewUrl(null);
+                              }}
+                              className="text-[9px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                              <span>Remover</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upload de PDF */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>Documento Digital (PDF)</span>
+                        {isDocumentMode && <span className="text-[10px] text-primary lowercase font-normal italic">(* recomendado)</span>}
+                      </label>
+                      <div className="flex gap-4 items-center bg-surface-container-low/20 p-3 rounded-lg border border-outline-variant/30 h-[96px]">
+                        <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary shrink-0 shadow-sm">
+                          <FileText className="w-5 h-5" />
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id="pdf-upload"
+                              accept="application/pdf"
+                              onChange={handlePdfChange}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="pdf-upload"
+                              className="flex items-center justify-center gap-1.5 border border-outline text-primary text-[10px] font-bold py-1.5 px-3 rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer shadow-sm w-max shrink-0"
+                            >
+                              <Upload className="w-3 h-3" />
+                              <span>{pdfFile || pdfUrl ? 'Substituir PDF' : 'Selecionar PDF'}</span>
+                            </label>
+                            
+                            {(pdfFile || pdfUrl) && (
+                              <span className="text-[10px] text-on-surface font-semibold truncate max-w-[90px]" title={pdfFile ? pdfFile.name : 'PDF Carregado'}>
+                                {pdfFile ? pdfFile.name : 'Anexo PDF'}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-on-surface-variant italic leading-normal">
+                            Documento PDF. Máx 20MB.
+                          </p>
+                          {(pdfFile || pdfUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPdfFile(null);
+                                setPdfUrl(null);
+                              }}
+                              className="text-[9px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                              <span>Remover</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingMaterial) {
+                        setIsEditMode(false);
+                      } else {
+                        setIsModalOpen(false);
+                        setEditingMaterial(null);
+                        setNewTitle('');
+                        setNewAuthor('');
+                        setNewIsbn('');
+                        setNewCategory('');
+                        setNewYear('');
+                        setNewCopies('1');
+                        setNewShelf('');
+                        setNewCurso('Multidisciplinar / Geral');
+                        setNewNumeroChamada('');
+                        setNewTituloOriginal('');
+                        setNewPublicacao('');
+                        setNewDescricaoFisica('');
+                        setNewSerie('');
+                        setNewNotas('');
+                        setNewAssuntos('');
+                        setCapaFile(null);
+                        setCapaPreviewUrl(null);
+                        setPdfFile(null);
+                        setPdfUrl(null);
+                        setErrorMsg(null);
+                      }
+                    }}
+                    className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || uploadingFile || uploadingPdf}
+                    className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{uploadingFile ? 'Enviando Capa...' : (uploadingPdf ? 'Enviando PDF...' : 'Salvando...')}</span>
+                      </>
+                    ) : (
+                      <span>{editingMaterial ? 'Salvar Alterações' : 'Salvar no Acervo'}</span>
+                    )}
+                  </button>
+                </footer>
+              </form>
+            )}
           </div>
         </div>
       )}
