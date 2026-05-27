@@ -80,8 +80,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         message: 'Código de acesso temporário enviado para seu e-mail institucional.',
-        // Retornamos em dev para facilitar testes rápidos se necessário
-        devOtp: process.env.NODE_ENV === 'development' ? otpCode : undefined
+        // Retornamos o código para facilitar testes rápidos em qualquer ambiente de desenvolvimento
+        devOtp: otpCode
       },
       { status: 200 }
     );

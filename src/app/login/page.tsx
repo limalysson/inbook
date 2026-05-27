@@ -14,7 +14,9 @@ import {
   UserCheck,
   User,
   Phone,
-  GraduationCap
+  GraduationCap,
+  Sparkles,
+  X
 } from 'lucide-react';
 
 /**
@@ -48,6 +50,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [devOtpNotification, setDevOtpNotification] = useState<string | null>(null);
 
   /**
    * Dispara a solicitação do código OTP para o backend.
@@ -77,6 +80,7 @@ export default function LoginPage() {
       // Armazena temporariamente em logs visuais do dev em ambiente local
       if (result.devOtp) {
         console.log(`[DEV] Seu OTP de testes é: ${result.devOtp}`);
+        setDevOtpNotification(result.devOtp);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Ocorreu um erro inesperado.');
@@ -111,6 +115,7 @@ export default function LoginPage() {
       
       if (result.devOtp) {
         console.log(`[DEV] Seu novo OTP de testes é: ${result.devOtp}`);
+        setDevOtpNotification(result.devOtp);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Ocorreu um erro ao tentar reenviar o código.');
@@ -161,8 +166,10 @@ export default function LoginPage() {
         setSavedSession(session);
         setShowProfileForm(true);
         setSuccessMsg('Código validado! Complete seus dados para o primeiro acesso.');
+        setDevOtpNotification(null);
       } else {
         setSuccessMsg('Autenticação concluída! Redirecionando...');
+        setDevOtpNotification(null);
         setTimeout(() => {
           router.push('/portal');
           router.refresh();
@@ -309,6 +316,7 @@ export default function LoginPage() {
                   setActiveTab('leitor');
                   setErrorMsg(null);
                   setSuccessMsg(null);
+                  setDevOtpNotification(null);
                 }}
                 role="tab"
                 aria-selected={activeTab === 'leitor'}
@@ -325,6 +333,7 @@ export default function LoginPage() {
                   setActiveTab('gestor');
                   setErrorMsg(null);
                   setSuccessMsg(null);
+                  setDevOtpNotification(null);
                 }}
                 role="tab"
                 aria-selected={activeTab === 'gestor'}
@@ -406,6 +415,7 @@ export default function LoginPage() {
                       setOtpSent(false);
                       setOtpCode('');
                       setErrorMsg(null);
+                      setDevOtpNotification(null);
                     }}
                     className="text-xs text-secondary hover:underline cursor-pointer"
                   >
@@ -659,6 +669,64 @@ export default function LoginPage() {
 
         </div>
       </div>
+
+      {/* Pop-up de Notificação do OTP para Desenvolvimento */}
+      {devOtpNotification && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-surface-container-lowest/90 backdrop-blur-md border border-secondary/30 rounded-xl shadow-2xl p-5 animate-in slide-in-from-bottom-5 duration-300 select-none">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex gap-3">
+              <div className="p-2 bg-secondary/10 rounded-lg text-secondary shrink-0">
+                <KeyRound className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-secondary animate-spin duration-3000" />
+                  <span>Modo de Testes (Dev)</span>
+                </h4>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Utilize o código de acesso abaixo para simular a validação sem precisar acessar o e-mail:
+                </p>
+                
+                {/* Código de Destaque */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="px-3 py-1.5 bg-secondary-container/20 border border-secondary/20 rounded-md font-mono text-base font-bold tracking-widest text-secondary shadow-sm select-all">
+                    {devOtpNotification}
+                  </span>
+                  
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(devOtpNotification);
+                      // Preenche automaticamente o campo de input de OTP para facilitar ainda mais!
+                      setOtpCode(devOtpNotification);
+                      
+                      // Feedback visual rápido de cópia
+                      const btn = document.getElementById('btn-copy-otp');
+                      if (btn) {
+                        btn.innerText = 'Copiado!';
+                        setTimeout(() => {
+                          if (btn) btn.innerText = 'Copiar & Colar';
+                        }, 1500);
+                      }
+                    }}
+                    id="btn-copy-otp"
+                    className="px-3 py-1.5 bg-primary text-on-primary hover:bg-primary/90 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider rounded-md cursor-pointer flex items-center gap-1 shadow-sm"
+                  >
+                    Copiar & Colar
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setDevOtpNotification(null)}
+              className="text-on-surface-variant/50 hover:text-secondary p-1 rounded-full hover:bg-surface-container transition-colors cursor-pointer shrink-0 border-0 bg-transparent"
+              aria-label="Fechar notificação"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
