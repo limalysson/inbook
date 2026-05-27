@@ -87,19 +87,9 @@ export default function CirculacaoPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      // Carrega taxa de multa do localStorage
-      if (typeof window !== 'undefined') {
-        const rate = localStorage.getItem('rule_fine_per_day') || '2.00';
-        setFineRate(parseFloat(rate));
-      }
-
-      // 1, 2 e 3. Dispara as três consultas ao Supabase em PARALELO usando Promise.all
+      // 1, 2, 3, 4 e 5. Dispara as consultas ao Supabase em PARALELO usando Promise.all
       // Isso otimiza drasticamente a performance, reduzindo o tempo de carregamento
-      // de sequencial (uma após a outra) para paralelo (todas juntas)
-      // 1, 2, 3 e 4. Dispara as consultas ao Supabase em PARALELO usando Promise.all
-      // Isso otimiza drasticamente a performance, reduzindo o tempo de carregamento
-      // de sequencial (uma após a outra) para paralelo (todas juntas)
-      const [loansResult, usersResult, booksResult, reservationsResult] = await Promise.all([
+      const [loansResult, usersResult, booksResult, reservationsResult, configsResult] = await Promise.all([
         supabase
           .from('circulacao')
           .select(`
@@ -128,7 +118,11 @@ export default function CirculacaoPage() {
             usuario:usuarios (nome_completo, matricula),
             material:acervo (titulo, autor, exemplares_disponiveis, exemplares_total)
           `)
-          .order('data_solicitacao', { ascending: false })
+          .order('data_solicitacao', { ascending: false }),
+
+        supabase
+          .from('configuracoes')
+          .select('chave, valor')
       ]);
 
       if (loansResult.error) throw loansResult.error;
@@ -140,6 +134,17 @@ export default function CirculacaoPage() {
       const usersData = usersResult.data;
       const booksData = booksResult.data;
       const reservationsData = reservationsResult.data;
+      const configsData = configsResult.data;
+
+      // Obtém a taxa de multa da tabela configuracoes
+      let dbFineRate = 2.00;
+      if (configsData && configsData.length > 0) {
+        const rateConfig = configsData.find((c: any) => c.chave === 'rule_fine_per_day');
+        if (rateConfig) {
+          dbFineRate = parseFloat(rateConfig.valor);
+        }
+      }
+      setFineRate(dbFineRate);
 
       // Calcula as multas de atrasos ativas de forma dinâmica no carregamento se houver atraso físico real
       const processedLoans = (loansData || []).map((loan: any) => {
@@ -149,8 +154,7 @@ export default function CirculacaoPage() {
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           
           if (diffDays > 0) {
-            const savedRate = typeof window !== 'undefined' ? parseFloat(localStorage.getItem('rule_fine_per_day') || '2.00') : 2.00;
-            const calculatedFine = diffDays * savedRate;
+            const calculatedFine = diffDays * dbFineRate;
             
             return {
               ...loan,

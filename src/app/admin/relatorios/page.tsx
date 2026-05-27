@@ -41,20 +41,34 @@ export default function RelatoriosPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from('circulacao')
-        .select(`
-          *,
-          usuario:usuarios (nome_completo, matricula),
-          material:acervo (titulo, autor)
-        `)
-        .order('data_emprestimo', { ascending: false });
+      const [circulacaoRes, configsRes] = await Promise.all([
+        supabase
+          .from('circulacao')
+          .select(`
+            *,
+            usuario:usuarios (nome_completo, matricula),
+            material:acervo (titulo, autor)
+          `)
+          .order('data_emprestimo', { ascending: false }),
+        supabase
+          .from('configuracoes')
+          .select('chave, valor')
+      ]);
 
-      if (error) throw error;
+      if (circulacaoRes.error) throw circulacaoRes.error;
+
+      // Obtém a taxa de multa da tabela configuracoes
+      let dbFineRate = 2.00;
+      if (!configsRes.error && configsRes.data) {
+        const rateConfig = configsRes.data.find(c => c.chave === 'rule_fine_per_day');
+        if (rateConfig) {
+          dbFineRate = parseFloat(rateConfig.valor);
+        }
+      }
 
       // Processamento dinâmico de multas e status de prazo
       const today = new Date();
-      const processed = (data || []).map((loan: any) => {
+      const processed = (circulacaoRes.data || []).map((loan: any) => {
         const prevDate = new Date(loan.data_devolucao_prevista);
         
         let prazoStatus: 'no_prazo' | 'atrasado' = 'no_prazo';
@@ -76,12 +90,11 @@ export default function RelatoriosPage() {
           // Empréstimo ativo (em andamento)
           if (today > prevDate) {
             prazoStatus = 'atrasado';
-            // Calcula multa diária reativa baseada nas regras de negócios locais
+            // Calcula multa diária reativa baseada nas regras de negócios do banco
             const diffTime = today.getTime() - prevDate.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             if (diffDays > 0) {
-              const savedRate = typeof window !== 'undefined' ? parseFloat(localStorage.getItem('rule_fine_per_day') || '2.00') : 2.00;
-              computedFine = diffDays * savedRate;
+              computedFine = diffDays * dbFineRate;
             }
           } else {
             prazoStatus = 'no_prazo';

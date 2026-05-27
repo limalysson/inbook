@@ -113,50 +113,57 @@ function UsuariosPageContent() {
   const [tempDocDays, setTempDocDays] = useState('21');
   const [tempFinePerDay, setTempFinePerDay] = useState('2.00');
 
-  // Efeito para carregar as regras salvas
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const sb = localStorage.getItem('rule_stud_books') || '3';
-      const sd = localStorage.getItem('rule_stud_days') || '14';
-      const db = localStorage.getItem('rule_doc_books') || '5';
-      const dd = localStorage.getItem('rule_doc_days') || '21';
-      const fd = localStorage.getItem('rule_fine_per_day') || '2.00';
-
-      setRuleStudBooks(sb);
-      setRuleStudDays(sd);
-      setRuleDocBooks(db);
-      setRuleDocDays(dd);
-      setRuleFinePerDay(fd);
-
-      setTempStudBooks(sb);
-      setTempStudDays(sd);
-      setTempDocBooks(db);
-      setTempDocDays(dd);
-      setTempFinePerDay(fd);
-    }
-  }, []);
-
-  // Carrega usuários do Supabase
-  const fetchUsuarios = async () => {
+  // Carrega usuários e configurações do Supabase em paralelo
+  const loadData = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .order('nome_completo', { ascending: true });
+      const [usersRes, configsRes] = await Promise.all([
+        supabase
+          .from('usuarios')
+          .select('*')
+          .order('nome_completo', { ascending: true }),
+        supabase
+          .from('configuracoes')
+          .select('chave, valor')
+      ]);
 
-      if (error) throw error;
-      setUsuarios(data || []);
+      if (usersRes.error) throw usersRes.error;
+      setUsuarios(usersRes.data || []);
+
+      if (!configsRes.error && configsRes.data) {
+        const configs: Record<string, string> = {};
+        configsRes.data.forEach(item => {
+          configs[item.chave] = item.valor;
+        });
+
+        const sb = configs['rule_stud_books'] || '3';
+        const sd = configs['rule_stud_days'] || '14';
+        const db = configs['rule_doc_books'] || '5';
+        const dd = configs['rule_doc_days'] || '21';
+        const fd = configs['rule_fine_per_day'] || '2.00';
+
+        setRuleStudBooks(sb);
+        setRuleStudDays(sd);
+        setRuleDocBooks(db);
+        setRuleDocDays(dd);
+        setRuleFinePerDay(fd);
+
+        setTempStudBooks(sb);
+        setTempStudDays(sd);
+        setTempDocBooks(db);
+        setTempDocDays(dd);
+        setTempFinePerDay(fd);
+      }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erro ao carregar os usuários.');
+      setErrorMsg(err.message || 'Erro ao carregar os dados.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsuarios();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -234,7 +241,7 @@ function UsuariosPageContent() {
       setIsModalOpen(false);
 
       // Recarrega listagem
-      fetchUsuarios();
+      loadData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Falha ao salvar leitor.');
     } finally {
@@ -659,30 +666,52 @@ function UsuariosPageContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    // Grava as alterações no localStorage e atualiza o estado
-                    localStorage.setItem('rule_stud_books', tempStudBooks);
-                    localStorage.setItem('rule_stud_days', tempStudDays);
-                    localStorage.setItem('rule_doc_books', tempDocBooks);
-                    localStorage.setItem('rule_doc_days', tempDocDays);
-                    localStorage.setItem('rule_fine_per_day', tempFinePerDay);
+                  disabled={submitting}
+                  onClick={async () => {
+                    setSubmitting(true);
+                    setErrorMsg(null);
+                    try {
+                      // Grava as alterações no Supabase (configuracoes)
+                      const { error } = await supabase
+                        .from('configuracoes')
+                        .upsert([
+                          { chave: 'rule_stud_books', valor: tempStudBooks },
+                          { chave: 'rule_stud_days', valor: tempStudDays },
+                          { chave: 'rule_doc_books', valor: tempDocBooks },
+                          { chave: 'rule_doc_days', valor: tempDocDays },
+                          { chave: 'rule_fine_per_day', valor: tempFinePerDay }
+                        ]);
 
-                    setRuleStudBooks(tempStudBooks);
-                    setRuleStudDays(tempStudDays);
-                    setRuleDocBooks(tempDocBooks);
-                    setRuleDocDays(tempDocDays);
-                    setRuleFinePerDay(tempFinePerDay);
+                      if (error) throw error;
 
-                    setSuccessMsg('Regras do sistema salvas com sucesso!');
-                    setIsRulesModalOpen(false);
+                      setRuleStudBooks(tempStudBooks);
+                      setRuleStudDays(tempStudDays);
+                      setRuleDocBooks(tempDocBooks);
+                      setRuleDocDays(tempDocDays);
+                      setRuleFinePerDay(tempFinePerDay);
 
-                    setTimeout(() => {
-                      setSuccessMsg(null);
-                    }, 4000);
+                      setSuccessMsg('Regras do sistema salvas com sucesso!');
+                      setIsRulesModalOpen(false);
+
+                      setTimeout(() => {
+                        setSuccessMsg(null);
+                      }, 4000);
+                    } catch (err: any) {
+                      setErrorMsg(err.message || 'Erro ao salvar as configurações.');
+                    } finally {
+                      setSubmitting(false);
+                    }
                   }}
-                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer shadow"
+                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer shadow disabled:opacity-50 disabled:cursor-not-allowed gap-2"
                 >
-                  Salvar Regras
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-on-primary" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <span>Salvar Regras</span>
+                  )}
                 </button>
               </footer>
             </div>
