@@ -84,11 +84,3 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o 
 *   **Acesso:** Aba **"Sou Aluno/Docente"** na tela de login.
 *   **E-mail:** `joao.silva@inbec.edu.br` ou `maria.santos@inbec.edu.br`
 *   **Código OTP:** Insira o e-mail, clique em receber código e **consulte o console/terminal onde o Next.js está rodando** para visualizar o OTP de testes gerado no log (Ex: `[OTP] Código gerado para joao.silva@inbec.edu.br: ABC123`).
-
----
-
-## 🌐 Publicação em Produção (Vercel)
-
-1.  Crie um novo projeto no **Vercel** e conecte seu repositório do GitHub.
-2.  Adicione as chaves contidas no seu `.env.local` na seção de **Environment Variables** nas configurações do projeto no Vercel.
-3.  Execute o **Deploy** e o Vercel gerará sua URL pública com suporte completo a cookies, sessão JWT persistente por 1 semana e barreira de segurança middleware ativa!
