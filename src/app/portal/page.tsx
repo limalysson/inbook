@@ -279,7 +279,7 @@ export default function PortalPage() {
   const overdueLoansCount = emprestimos.filter(l => l.status === 'atrasado').length;
 
   return (
-    <div className="min-h-screen bg-surface-container-lowest flex flex-col font-sans select-none pb-12">
+    <div className="min-h-screen bg-surface-container-lowest flex flex-col font-sans select-none pb-20 md:pb-12">
       
       {/* Barra de Cabeçalho Superior Premium */}
       <header className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant/40 flex justify-between items-center px-6 py-3 h-16 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
@@ -367,7 +367,7 @@ export default function PortalPage() {
         )}
 
         {/* Abas de Navegação do Portal */}
-        <div className="flex border-b border-outline-variant/60 gap-6">
+        <div className="hidden md:flex border-b border-outline-variant/60 gap-6">
           <button
             onClick={() => setActiveTab('catalogo')}
             className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
@@ -405,8 +405,8 @@ export default function PortalPage() {
           <div className="space-y-6">
             
             {/* Barra de Filtros e Pesquisa */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white border border-outline-variant rounded-xl p-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-xl">
+            <div className="bg-white border border-outline-variant rounded-xl p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
                     <Search className="w-4 h-4" />
@@ -424,7 +424,7 @@ export default function PortalPage() {
                 <select
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="py-2 px-3 border border-outline-variant bg-surface text-sm rounded-md focus:outline-none focus:border-primary shrink-0 text-on-surface"
+                  className="py-2 px-3 border border-outline-variant bg-surface text-sm rounded-md focus:outline-none focus:border-primary shrink-0 text-on-surface cursor-pointer"
                 >
                   <option value="Todos">Todos os Cursos</option>
                   <option value="Multidisciplinar / Geral">Multidisciplinar</option>
@@ -433,23 +433,18 @@ export default function PortalPage() {
                   <option value="Engenharia Civil">Eng. Civil</option>
                   <option value="Direito">Direito</option>
                 </select>
-              </div>
 
-              {/* Filtro de Categoria Rolável */}
-              <div className="flex gap-2 overflow-x-auto w-full md:w-auto scrollbar-none py-1">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all cursor-pointer ${
-                      selectedCategory === cat
-                        ? 'bg-primary text-on-primary border-primary shadow-sm'
-                        : 'bg-surface border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+                {/* Filtro por Categoria */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="py-2 px-3 border border-outline-variant bg-surface text-sm rounded-md focus:outline-none focus:border-primary shrink-0 text-on-surface cursor-pointer"
+                >
+                  <option value="Todos">Todas as Categorias</option>
+                  {categories.filter(c => c !== 'Todos').map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1074,6 +1069,41 @@ export default function PortalPage() {
           </div>
         </div>
       )}
+
+      {/* Navegação Inferior Móvel para o Portal do Leitor */}
+      <nav className="fixed bottom-0 left-0 w-full z-40 h-16 bg-surface border-t border-outline-variant/40 md:hidden flex justify-around items-center px-4 shadow-[0_-2px_10px_rgba(0,0,0,0.01)] select-none">
+        {[
+          { id: 'catalogo', label: 'Catálogo', icon: Library, count: filteredBooks.length },
+          { id: 'meus-livros', label: 'Empréstimos', icon: BookMarked, count: emprestimos.length },
+          { id: 'meus-reservas', label: 'Reservas', icon: Calendar, count: reservas.length }
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              className={`flex flex-col items-center justify-center w-20 h-12 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer relative ${
+                isActive ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'
+              }`}
+            >
+              <div className={`p-1.5 rounded-full transition-colors ${
+                isActive ? 'bg-primary/5 text-primary' : 'bg-transparent'
+              }`}>
+                <Icon className="w-5 h-5 shrink-0" />
+              </div>
+              <span className="text-[9px] font-sans tracking-wide mt-0.5 uppercase leading-none">
+                {item.label}
+              </span>
+              {item.count > 0 && (
+                <span className="absolute top-1 right-3 bg-primary text-on-primary text-[8px] font-bold px-1.5 py-0.5 rounded-full scale-90 shadow-sm">
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
     </div>
   );
