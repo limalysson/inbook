@@ -62,6 +62,7 @@ function UsuariosPageContent() {
   // Estados do Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [newName, setNewName] = useState('');
   const [newMatricula, setNewMatricula] = useState('');
   const [newType, setNewType] = useState<UserType>('estudante');
@@ -94,6 +95,7 @@ function UsuariosPageContent() {
     
     setNewPhone(user.telefone || '');
     setNewStatus(user.status);
+    setIsEditMode(false);
     setIsModalOpen(true);
   };
 
@@ -169,6 +171,7 @@ function UsuariosPageContent() {
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
       resetForm();
+      setIsEditMode(true);
       setIsModalOpen(true);
     }
   }, [searchParams]);
@@ -326,7 +329,11 @@ function UsuariosPageContent() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            resetForm();
+            setIsEditMode(true);
+            setIsModalOpen(true);
+          }}
           className="flex items-center justify-center gap-2 bg-primary text-on-primary px-5 py-3 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -420,7 +427,7 @@ function UsuariosPageContent() {
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden md:table-cell">Curso / Departamento</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs hidden sm:table-cell">E-mail</th>
                 <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-center">Status</th>
-                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right">Ações</th>
+                <th className="px-6 py-4 font-bold text-on-surface-variant uppercase tracking-wider text-xs text-right hidden sm:table-cell">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/30">
@@ -440,7 +447,13 @@ function UsuariosPageContent() {
                           {user.nome_completo.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-primary">{user.nome_completo}</p>
+                          <p 
+                            onClick={() => startEditUsuario(user)}
+                            className="font-bold text-primary hover:underline cursor-pointer select-none"
+                            title="Clique para ver os detalhes"
+                          >
+                            {user.nome_completo}
+                          </p>
                           <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
                             {user.tipo}
                           </p>
@@ -472,7 +485,7 @@ function UsuariosPageContent() {
                         )}
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right hidden sm:table-cell">
                       <div className="flex justify-end items-center gap-2">
                         <button
                           onClick={() => startEditUsuario(user)}
@@ -542,7 +555,7 @@ function UsuariosPageContent() {
         <Info className="w-6 h-6 text-primary shrink-0 mt-0.5" />
         <div className="space-y-2 flex-1">
           <div className="flex justify-between items-center">
-            <h4 className="text-sm font-bold text-primary">Regras de Acesso e Limites de Empréstimo</h4>
+            <h4 className="text-sm font-bold text-primary">Regras de Empréstimo</h4>
             <button
               onClick={() => {
                 // Abre o modal de edição das regras
@@ -726,7 +739,10 @@ function UsuariosPageContent() {
             
             <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
               <h3 className="font-serif text-lg font-bold text-primary">
-                {editingUsuario ? 'Editar Perfil do Leitor' : 'Cadastrar Novo Leitor'}
+                {editingUsuario 
+                  ? (!isEditMode ? 'Ficha de Cadastro do Leitor' : 'Editar Perfil do Leitor')
+                  : 'Cadastrar Novo Leitor'
+                }
               </h3>
               <button 
                 onClick={() => {
@@ -739,141 +755,268 @@ function UsuariosPageContent() {
               </button>
             </header>
 
-            <form onSubmit={handleSaveUsuario} className="p-6 space-y-4">
-              {errorMsg && (
-                <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
-                  <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
-                  <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+            {!isEditMode && editingUsuario ? (
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {errorMsg && (
+                  <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Coluna Esquerda: Avatar e Tipo de Vínculo */}
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-24 h-24 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-3xl shadow-md border border-outline-variant/30 select-none">
+                      {editingUsuario.nome_completo.substring(0, 2).toUpperCase()}
+                    </div>
+                    <span className="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold uppercase tracking-wider">
+                      {editingUsuario.tipo}
+                    </span>
+                  </div>
+
+                  {/* Coluna Direita (2/3): Dados em Mono */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-5 shadow-inner font-mono text-xs text-on-surface relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full translate-x-8 -translate-y-8" />
+                      
+                      <div className="space-y-3 relative z-10">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-primary font-bold block mb-0.5">Nome Completo</span>
+                          <span className="text-sm font-bold font-serif text-primary block leading-snug">{editingUsuario.nome_completo}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Matrícula / ID</span>
+                            <span className="font-semibold">{editingUsuario.matricula}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Telefone</span>
+                            <span className="font-semibold">{editingUsuario.telefone || 'Sem contato cadastrado'}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-1">
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Curso / Departamento</span>
+                          <span className="font-semibold text-secondary">{editingUsuario.curso_departamento || 'Sem curso/departamento definido'}</span>
+                        </div>
+
+                        <div className="pt-1">
+                          <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">E-mail Institucional</span>
+                          <span className="font-semibold text-on-surface select-all">{editingUsuario.email}</span>
+                        </div>
+
+                        <hr className="border-outline-variant/30 my-2" />
+
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">Status do Leitor</span>
+                            <span className="text-[10px] text-on-surface-variant">Inativos são bloqueados de realizar empréstimos.</span>
+                          </div>
+                          <div>
+                            {editingUsuario.status ? (
+                              <span className="inline-flex items-center gap-1.5 bg-surface-container-high border border-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                                Conta Ativa
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 bg-error-container border border-error/20 text-on-error-container px-3 py-1 rounded-full text-xs font-bold">
+                                <span className="w-2 h-2 bg-secondary rounded-full" />
+                                Conta Inativa
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nome Completo</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: João da Silva Santos"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
-                />
+                <footer className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-outline-variant/30 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetForm();
+                      setIsModalOpen(false);
+                    }}
+                    className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer text-center"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updatingId === editingUsuario.id}
+                    onClick={async () => {
+                      if (editingUsuario) {
+                        const nextStatus = !editingUsuario.status;
+                        await handleToggleStatus(editingUsuario.id, editingUsuario.status);
+                        setEditingUsuario({ ...editingUsuario, status: nextStatus });
+                      }
+                    }}
+                    className="flex-1 py-3 border border-secondary/30 text-secondary text-sm font-semibold rounded hover:bg-secondary/5 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
+                  >
+                    {updatingId === editingUsuario.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-secondary" />
+                    ) : editingUsuario.status ? (
+                      <span>Bloquear Acesso</span>
+                    ) : (
+                      <span>Habilitar Acesso</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditMode(true);
+                    }}
+                    className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Editar Cadastro</span>
+                  </button>
+                </footer>
               </div>
+            ) : (
+              <form onSubmit={handleSaveUsuario} className="p-6 space-y-4">
+                {errorMsg && (
+                  <div className="bg-error-container border border-error/20 p-3 rounded flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-on-error-container shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-on-error-container">{errorMsg}</p>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Matrícula / ID</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nome Completo</label>
                   <input
                     type="text"
                     required
-                    placeholder="2024.1.0001"
-                    value={newMatricula}
-                    onChange={(e) => setNewMatricula(e.target.value)}
+                    placeholder="Ex: João da Silva Santos"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tipo de Vínculo</label>
-                  <select
-                    required
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value as UserType)}
-                    className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm"
-                  >
-                    <option value="estudante">Estudante (Graduação)</option>
-                    <option value="docente">Professor / Docente</option>
-                    <option value="funcionario">Funcionário / Técnico</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Curso / Departamento</label>
-                <select
-                  required
-                  value={newDepartment}
-                  onChange={(e) => setNewDepartment(e.target.value)}
-                  className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-primary"
-                >
-                  <option value="" disabled>Selecione seu Curso / Departamento</option>
-                  <option value="Análise e Desenvolvimento de Sistemas (ADS)">Análise e Desenvolvimento de Sistemas (ADS)</option>
-                  <option value="Engenharia de Software">Engenharia de Software</option>
-                  <option value="Engenharia Civil">Engenharia Civil</option>
-                  <option value="Direito">Direito</option>
-                  <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">E-mail Institucional</label>
-                  <div className="flex items-stretch">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Matrícula / ID</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: joao.silva"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      className="flex-1 h-9 px-3 border border-outline-variant rounded-l focus:outline-none focus:border-primary text-sm min-w-0"
+                      placeholder="2024.1.0001"
+                      value={newMatricula}
+                      onChange={(e) => setNewMatricula(e.target.value)}
+                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
                     />
-                    <span className="bg-surface-container-high text-on-surface-variant px-3 border border-l-0 border-outline-variant rounded-r text-xs font-bold font-mono flex items-center justify-center shrink-0 select-none">
-                      @inbec.edu.br
-                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tipo de Vínculo</label>
+                    <select
+                      required
+                      value={newType}
+                      onChange={(e) => setNewType(e.target.value as UserType)}
+                      className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm"
+                    >
+                      <option value="estudante">Estudante (Graduação)</option>
+                      <option value="docente">Professor / Docente</option>
+                      <option value="funcionario">Funcionário / Técnico</option>
+                    </select>
                   </div>
                 </div>
+
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Telefone de Contato</label>
-                  <input
-                    type="text"
-                    placeholder="(00) 00000-0000"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
-                  />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Curso / Departamento</label>
+                  <select
+                    required
+                    value={newDepartment}
+                    onChange={(e) => setNewDepartment(e.target.value)}
+                    className="w-full px-3 py-2 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-primary"
+                  >
+                    <option value="" disabled>Selecione seu Curso / Departamento</option>
+                    <option value="Análise e Desenvolvimento de Sistemas (ADS)">Análise e Desenvolvimento de Sistemas (ADS)</option>
+                    <option value="Engenharia de Software">Engenharia de Software</option>
+                    <option value="Engenharia Civil">Engenharia Civil</option>
+                    <option value="Direito">Direito</option>
+                    <option value="Multidisciplinar / Geral">Multidisciplinar / Geral</option>
+                  </select>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between py-2 border-y border-outline-variant/30 my-4 select-none">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Status Inicial da Conta</p>
-                  <p className="text-[10px] text-on-surface-variant">Usuários inativos não podem efetuar empréstimos.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">E-mail Institucional</label>
+                    <div className="flex items-stretch">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: joao.silva"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        className="flex-1 h-9 px-3 border border-outline-variant rounded-l focus:outline-none focus:border-primary text-sm min-w-0"
+                      />
+                      <span className="bg-surface-container-high text-on-surface-variant px-3 border border-l-0 border-outline-variant rounded-r text-xs font-bold font-mono flex items-center justify-center shrink-0 select-none">
+                        @inbec.edu.br
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Telefone de Contato</label>
+                    <input
+                      type="text"
+                      placeholder="(00) 00000-0000"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      className="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:border-primary text-sm"
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setNewStatus(!newStatus)}
-                  className="text-primary hover:opacity-85 transition-opacity focus:outline-none cursor-pointer"
-                >
-                  {newStatus ? (
-                    <ToggleRight className="w-10 h-10 text-primary" />
-                  ) : (
-                    <ToggleLeft className="w-10 h-10 text-on-surface-variant/40" />
-                  )}
-                </button>
-              </div>
 
-              <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetForm();
-                    setIsModalOpen(false);
-                  }}
-                  className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>{editingUsuario ? 'Salvar Alterações' : 'Cadastrar Leitor'}</span>
-                  )}
-                </button>
-              </footer>
-            </form>
+                <div className="flex items-center justify-between py-2 border-y border-outline-variant/30 my-4 select-none">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">Status Inicial da Conta</p>
+                    <p className="text-[10px] text-on-surface-variant">Usuários inativos não podem efetuar empréstimos.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewStatus(!newStatus)}
+                    className="text-primary hover:opacity-85 transition-opacity focus:outline-none cursor-pointer"
+                  >
+                    {newStatus ? (
+                      <ToggleRight className="w-10 h-10 text-primary" />
+                    ) : (
+                      <ToggleLeft className="w-10 h-10 text-on-surface-variant/40" />
+                    )}
+                  </button>
+                </div>
+
+                <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingUsuario) {
+                        setIsEditMode(false);
+                      } else {
+                        resetForm();
+                        setIsModalOpen(false);
+                      }
+                    }}
+                    className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span>{editingUsuario ? 'Salvar Alterações' : 'Cadastrar Leitor'}</span>
+                    )}
+                  </button>
+                </footer>
+              </form>
+            )}
           </div>
         </div>
       )}
