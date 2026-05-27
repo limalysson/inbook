@@ -8,7 +8,10 @@ import {
   Mail, 
   CheckCircle,
   Plus,
-  History
+  History,
+  FileText,
+  User,
+  ArrowLeftRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
@@ -82,20 +85,34 @@ export default async function DashboardPage() {
             Visão Geral do Acervo
           </h2>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3 select-none">
           <Link
             href="/admin/acervo?add=true"
-            className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded text-xs font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm shrink-0"
           >
-            <Plus className="w-4 h-4" />
-            <span>Nova Aquisição</span>
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Novo Livro</span>
+          </Link>
+          <Link
+            href="/admin/acervo?add_doc=true"
+            className="flex items-center gap-2 border border-outline bg-white text-primary px-4 py-2 rounded text-xs font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm shrink-0"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Novo Documento</span>
           </Link>
           <Link
             href="/admin/usuarios?add=true"
-            className="flex items-center gap-2 border border-primary text-primary px-5 py-2.5 rounded text-sm font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm"
+            className="flex items-center gap-2 border border-outline bg-white text-primary px-4 py-2 rounded text-xs font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <User className="w-3.5 h-3.5" />
             <span>Novo Leitor</span>
+          </Link>
+          <Link
+            href="/admin/circulacao?add=true"
+            className="flex items-center gap-2 border border-outline bg-white text-primary px-4 py-2 rounded text-xs font-semibold hover:bg-surface-container active:scale-95 transition-all shadow-sm shrink-0"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            <span>Novo Empréstimo</span>
           </Link>
         </div>
       </header>

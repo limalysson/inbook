@@ -15,7 +15,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
-  DollarSign
+  DollarSign,
+  Plus,
+  X
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import AnimatedCounter from '@/components/AnimatedCounter';
@@ -36,7 +38,8 @@ export default function CirculacaoPage() {
   const [reservas, setReservas] = useState<any[]>([]);
   
   // Estados de controle
-  const [activeTab, setActiveTab] = useState<'ativos' | 'historico' | 'novo' | 'reservas'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'historico' | 'reservas'>('ativos');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -72,6 +75,9 @@ export default function CirculacaoPage() {
       const tab = params.get('tab');
       if (tab === 'reservas') {
         setActiveTab('reservas');
+      }
+      if (params.get('add') === 'true') {
+        setIsModalOpen(true);
       }
     }
   }, []);
@@ -240,7 +246,7 @@ export default function CirculacaoPage() {
       setSuccessMsg('Empréstimo registrado com sucesso!');
       setSelectedUsuarioId('');
       setSelectedMaterialId('');
-      setActiveTab('ativos');
+      setIsModalOpen(false);
       
       // Recarrega dados completos
       loadData();
@@ -477,6 +483,13 @@ export default function CirculacaoPage() {
             Gestão institucional de empréstimos, devoluções, renovações e pendências.
           </p>
         </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 bg-primary text-on-primary px-5 py-3 rounded text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer shrink-0"
+        >
+          <ArrowLeftRight className="w-4 h-4" />
+          <span>Novo Empréstimo</span>
+        </button>
       </header>
 
       {/* Alertas Rápidos de Feedback */}
@@ -495,7 +508,7 @@ export default function CirculacaoPage() {
       )}
 
       {/* Navegação de Abas */}
-      <nav className="flex border-b border-outline-variant/40" role="tablist">
+      <nav className="flex border-b border-outline-variant/40 animate-in fade-in duration-300" role="tablist">
         <button
           onClick={() => setActiveTab('ativos')}
           className={`flex-1 py-3 text-sm font-semibold text-center transition-colors border-b-2 outline-none cursor-pointer ${
@@ -515,16 +528,6 @@ export default function CirculacaoPage() {
           }`}
         >
           Histórico de Transações (<AnimatedCounter value={historico.length} />)
-        </button>
-        <button
-          onClick={() => setActiveTab('novo')}
-          className={`flex-1 py-3 text-sm font-semibold text-center transition-colors border-b-2 outline-none cursor-pointer ${
-            activeTab === 'novo'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-on-surface-variant hover:text-primary'
-          }`}
-        >
-          Novo Empréstimo
         </button>
         <button
           onClick={() => setActiveTab('reservas')}
@@ -747,95 +750,119 @@ export default function CirculacaoPage() {
         </div>
       )}
 
-      {/* ABA 3: REGISTRAR NOVO EMPRÉSTIMO */}
-      {activeTab === 'novo' && (
-        <div className="bg-white border border-outline-variant rounded-xl p-8 max-w-2xl mx-auto shadow-sm">
-          <h3 className="font-serif text-xl font-bold text-primary mb-6 flex items-center gap-2 border-b border-outline-variant/30 pb-4">
-            <PlusCircle className="w-6 h-6 text-primary" />
-            <span>Registrar Nova Transação</span>
-          </h3>
-
-          <form onSubmit={handleCreateEmprestimo} className="space-y-6">
+      {/* MODAL: Registrar Novo Empréstimo */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-outline-variant w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col">
             
-            {/* Escolher Leitor */}
-            <div className="space-y-2">
-              <label htmlFor="select-leitor" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Selecione o Leitor (Somente Usuários Ativos)
-              </label>
-              <select
-                id="select-leitor"
-                required
-                value={selectedUsuarioId}
-                onChange={(e) => setSelectedUsuarioId(e.target.value)}
-                className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm"
+            <header className="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface">
+              <h3 className="font-serif text-lg font-bold text-primary flex items-center gap-2 select-none">
+                <ArrowLeftRight className="w-5 h-5 text-primary" />
+                <span>Registrar Novo Empréstimo</span>
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setSelectedUsuarioId('');
+                  setSelectedMaterialId('');
+                  setErrorMsg(null);
+                }}
+                className="text-on-surface-variant hover:text-secondary p-1 rounded-full transition-colors cursor-pointer border-0 bg-transparent shrink-0"
               >
-                <option value="">-- Escolher Membro --</option>
-                {usuariosAtivos.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome_completo} (Matrícula: {u.matricula})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Escolher Livro */}
-            <div className="space-y-2">
-              <label htmlFor="select-livro" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Selecione o Livro (Somente Itens com Estoque)
-              </label>
-              <select
-                id="select-livro"
-                required
-                value={selectedMaterialId}
-                onChange={(e) => setSelectedMaterialId(e.target.value)}
-                className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm"
-              >
-                <option value="">-- Escolher Livro --</option>
-                {livrosDisponiveis.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.titulo} (Autor: {b.autor} | {b.exemplares_disponiveis} disponíveis)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Prazo do Empréstimo */}
-            <div className="space-y-2">
-              <label htmlFor="select-prazo" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Prazo de Devolução Prevista
-              </label>
-              <select
-                id="select-prazo"
-                required
-                value={returnDays}
-                onChange={(e) => setReturnDays(e.target.value)}
-                className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm font-semibold"
-              >
-                <option value="7">7 Dias (Uso Intensivo / Curto Prazo)</option>
-                <option value="14">14 Dias (Prazo Padrão Estudante)</option>
-                <option value="21">21 Dias (Prazo Estendido Docente)</option>
-              </select>
-            </div>
-
-            {/* Botão de Envio */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-md"
-              >
-                {submitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <ArrowLeftRight className="w-4 h-4" />
-                    <span>Confirmar e Registrar Empréstimo</span>
-                  </>
-                )}
+                <X className="w-5 h-5" />
               </button>
-            </div>
+            </header>
 
-          </form>
+            <form onSubmit={handleCreateEmprestimo} className="p-6 space-y-6">
+              {/* Escolher Leitor */}
+              <div className="space-y-2">
+                <label htmlFor="select-leitor" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Selecione o Leitor (Somente Usuários Ativos)
+                </label>
+                <select
+                  id="select-leitor"
+                  required
+                  value={selectedUsuarioId}
+                  onChange={(e) => setSelectedUsuarioId(e.target.value)}
+                  className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-primary font-semibold"
+                >
+                  <option value="">-- Escolher Membro --</option>
+                  {usuariosAtivos.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome_completo} (Matrícula: {u.matricula})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Escolher Livro */}
+              <div className="space-y-2">
+                <label htmlFor="select-livro" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Selecione o Livro (Somente Itens com Estoque)
+                </label>
+                <select
+                  id="select-livro"
+                  required
+                  value={selectedMaterialId}
+                  onChange={(e) => setSelectedMaterialId(e.target.value)}
+                  className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm text-primary font-semibold"
+                >
+                  <option value="">-- Escolher Livro --</option>
+                  {livrosDisponiveis.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.titulo} (Autor: {b.autor} | {b.exemplares_disponiveis} disponíveis)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Prazo do Empréstimo */}
+              <div className="space-y-2">
+                <label htmlFor="select-prazo" className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Prazo de Devolução Prevista
+                </label>
+                <select
+                  id="select-prazo"
+                  required
+                  value={returnDays}
+                  onChange={(e) => setReturnDays(e.target.value)}
+                  className="w-full px-3 py-3 border border-outline-variant bg-white rounded focus:outline-none focus:border-primary text-sm font-bold text-primary"
+                >
+                  <option value="7">7 Dias (Uso Intensivo / Curto Prazo)</option>
+                  <option value="14">14 Dias (Prazo Padrão Estudante)</option>
+                  <option value="21">21 Dias (Prazo Estendido Docente)</option>
+                </select>
+              </div>
+
+              <footer className="pt-4 flex gap-3 border-t border-outline-variant/30 mt-6 select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setSelectedUsuarioId('');
+                    setSelectedMaterialId('');
+                  }}
+                  className="flex-1 py-3 border border-outline text-primary text-sm font-semibold rounded hover:bg-surface-container active:scale-[0.98] transition-all cursor-pointer bg-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 py-3 bg-primary text-on-primary text-sm font-semibold rounded hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <ArrowLeftRight className="w-4 h-4" />
+                      <span>Confirmar Empréstimo</span>
+                    </>
+                  )}
+                </button>
+              </footer>
+            </form>
+          </div>
         </div>
       )}
 

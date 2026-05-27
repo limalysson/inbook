@@ -114,6 +114,11 @@ function AcervoPageContent() {
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
+      setIsDocumentMode(false);
+      setIsModalOpen(true);
+    } else if (searchParams.get('add_doc') === 'true') {
+      setIsDocumentMode(true);
+      setNewCategory('Monografia');
       setIsModalOpen(true);
     }
   }, [searchParams]);
