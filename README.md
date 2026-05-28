@@ -1,4 +1,4 @@
-# 📖 INBOOK — Sistema de Gestão de Biblioteca e Acervo
+60861-770# 📖 INBOOK — Sistema de Gestão de Biblioteca e Acervo
 
 O **INBOOK** é um sistema acadêmico moderno, premium e de alta performance projetado para controle de acervo bibliográfico, circulação de volumes (empréstimos/devoluções/renovações) e gerenciamento de leitores (estudantes e docentes). 
 
@@ -84,3 +84,5 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver o 
 *   **Acesso:** Aba **"Sou Aluno/Docente"** na tela de login.
 *   **E-mail:** `joao.silva@inbec.edu.br` ou `maria.santos@inbec.edu.br`
 *   **Código OTP:** Insira o e-mail, clique em receber código e **consulte o console/terminal onde o Next.js está rodando** para visualizar o OTP de testes gerado no log (Ex: `[OTP] Código gerado para joao.silva@inbec.edu.br: ABC123`).
+
+https://inbook-drab.vercel.app/login
